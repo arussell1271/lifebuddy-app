@@ -26,6 +26,7 @@ pgadmin_config/
 .env
 .env.dev
 .env.prod
+.env.cognitive
 
 # Ignore backup directories and files
 backups/

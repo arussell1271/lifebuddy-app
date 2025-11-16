@@ -25,7 +25,7 @@ if (-not (Test-Path -Path ".git" -PathType Container)) {
 # --- 4. Define Dynamic Commit Message ---
 $MachineName = $env:COMPUTERNAME
 $CommitDate = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-$CommitMessage = "Feature: Automated code push from $($MachineName) on $($CommitDate)"
+$CommitMessage = "Updated from $($MachineName) on the $($CommitDate)"
 
 # --- 5. Stage, Commit, and Push Changes ---
 Write-Host "--- Staging and committing changes ---"
