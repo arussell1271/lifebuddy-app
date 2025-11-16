@@ -1,0 +1,35 @@
+# General Ignore Rules
+# Dependencies
+__pycache__/
+*.pyc
+# OS and Editor specific files
+.DS_Store
+.vscode/
+
+# Python Virtual Environments
+# (These are installed inside the container, but we exclude the host's too)
+venv/
+.venv/
+
+# Docker/System Ignore Rules
+# --- CRITICAL: DO NOT COMMIT DOCKER VOLUMES ---
+# These are local, persistent folders that contain your database data.
+# Committing these will cause massive issues when switching machines.
+volumes/
+dev_postgres_data/
+pgadmin_data/
+pgadmin_config/
+
+# Environment files should NOT be committed if they contain secrets.
+# Since your .env files use local development credentials, it is a common practice to exclude
+# them and commit a .env.example file instead. For now, we will ignore the files.
+.env
+.env.dev
+.env.prod
+
+# Ignore backup directories and files
+backups/
+*.bak
+*.zip
+*.tar.gz
+*.tar

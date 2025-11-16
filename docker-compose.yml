@@ -1,0 +1,209 @@
+# docker-compose.yml
+# version: '3.8'
+
+# --- Networks for Security Isolation ---
+networks:
+  # 1. External/Frontend Network (For 'app' and 'pgadmin' to be accessible)
+  frontend-network:
+    driver: bridge
+  # 2. Internal/Backend Network (For 'cognitive-engine', 'db', and 'ollama' - THE SECURE NETWORK)
+  core-network:
+    driver: bridge
+
+# --- Volumes for Persistent Data ---
+volumes:
+  dev_postgres_data:
+  prod_postgres_data: # New volume for production data
+  pgadmin_data:
+  ollama_models:
+  open_webui_data:
+
+# --- Services Definitions ---
+services:
+
+ # 1. DEVELOPMENT DATABASE (Postgres + pgvector)
+  dev_db:
+    # Service Name: dev_db
+    container_name: dev_db
+    image: pgvector/pgvector:pg16 # Pre-built image with pgvector
+    env_file:
+      - .env.dev # Load dev secrets
+    ports:
+      - "5432:5432" # Expose the port to your host for admin tools
+    volumes:
+      - dev_postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - core-network # Secure network access
+    profiles: [ "dev" ] # Only run when the 'dev' profile is active
+    restart: always
+    healthcheck:                    
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. PRODUCTION DATABASE (Postgres + pgvector)
+  prod_db:
+    # Service Name: prod_db
+    container_name: prod_db
+    image: pgvector/pgvector:pg16
+    env_file:
+      - .env.prod # Load production secrets
+    # CRITICAL: NO PORTS EXPOSED TO HOST FOR SECURITY
+    volumes:
+      - prod_postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - core-network # Secure network access
+    profiles: [ "prod" ] # Only run when the 'prod' profile is active
+    restart: always
+
+  # 3. DEVELOPMENT APPLICATION (Body API - Frontend/User Interaction)
+  app:
+    # Service Name: app (Frontend API)
+    container_name: dev_app
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder # Use the builder stage for development to keep build dependencies for tooling
+    env_file:
+      - .env.dev
+    # Live code mounting for hot-reloading (development feature)
+    volumes:
+      - ./app:/usr/src/app/app
+      - ./engine:/usr/src/app/engine
+    # CRITICAL: Runs a development server for hot-reloading
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    depends_on:
+      - dev_db
+      - ollama
+    networks:
+      - frontend-network # Accessible by user (browser)
+      - core-network     # Can talk to dev_db/ollama
+    profiles: [ "dev" ]
+    restart: always
+    
+  # 4. PRODUCTION APPLICATION (Body API - Frontend/User Interaction)
+  prod_app:
+    # Service Name: prod_app
+    container_name: prod_app
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner # Use the minimal production runner stage
+    env_file:
+      - .env.prod # Use production secrets
+    # CRITICAL: Runs a production-ready server (Gunicorn/Uvicorn workers)
+    command: gunicorn app.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      - prod_db
+      - ollama
+    networks:
+      - frontend-network # Accessible by user (browser)
+      - core-network     # Can talk to prod_db/ollama
+    profiles: [ "prod" ]
+    restart: always
+    
+  # 5. DEVELOPMENT COGNITIVE ENGINE (Brain API - LLM & DB Logic)
+  cognitive-engine:
+    # Service Name: cognitive-engine (Brain API)
+    container_name: dev_engine
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder # Use the builder stage for development
+    env_file:
+      - .env.dev
+    # Live code mounting for hot-reloading (development feature)
+    volumes:
+      - ./app:/usr/src/app/app
+      - ./engine:/usr/src/app/engine
+    # CRITICAL: Runs a production-ready server, even in dev, as this is a backend service
+    command: gunicorn engine.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8001
+    ports:
+      - "8001:8001"
+    depends_on:
+      dev_db:
+        condition: service_healthy 
+      ollama:
+        condition: service_started
+    networks:
+      - core-network # Not directly exposed to the internet, only talks to app/db/ollama
+    profiles: [ "dev" ]
+    restart: always
+
+  # 6. PRODUCTION COGNITIVE ENGINE (Brain API - LLM & DB Logic)
+  prod_engine:
+    # Service Name: prod_engine
+    container_name: prod_engine
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner # Use the minimal production runner stage
+    env_file:
+      - .env.prod # Use production secrets
+    # CRITICAL: Runs a production-ready server
+    command: gunicorn engine.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8001
+    ports:
+      - "8001:8001"
+    depends_on:
+      - prod_db
+      - ollama
+    networks:
+      - core-network # Not directly exposed to the internet
+    profiles: [ "prod" ]
+    restart: always
+
+  # 7. PGADMIN (DB Admin Tool)
+  pgadmin:
+    # ... (configuration remains the same, only runs in dev)
+    container_name: pgadmin
+    image: dpage/pgadmin4
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@lifebuddy.com # <--- YOUR LOGIN EMAIL
+      PGADMIN_DEFAULT_PASSWORD: verysecurepgadminpassword # <--- YOUR LOGIN PASSWORD
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - dev_db
+    networks:
+      - frontend-network # Accessible via browser
+    profiles:
+      - dev
+    restart: unless-stopped
+
+  # 8. OLLAMA (Local LLM Engine)
+  ollama:
+    container_name: ollama
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_models:/root/.ollama
+    networks:
+      - core-network
+    restart: always
+
+  # 9. AI WEB UI (Open WebUI) - Used for testing/debugging LLM access
+  open_webui:
+    container_name: open_webui
+    image: ghcr.io/open-webui/open-webui:ollama
+    ports:
+      - "3000:8080"
+    volumes:
+      - open_webui_data:/app/backend/data
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+    depends_on:
+      - ollama
+    networks:
+      - core-network
+      - frontend-network # User accessible
+    profiles:
+      - dev # Only useful for local development and testing
+    restart: always

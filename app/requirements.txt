@@ -1,0 +1,15 @@
+# app/requirements.txt
+
+# Web Framework (FastAPI is fast and modern)
+fastapi
+# ASGI Server (Uvicorn provides the hot-reloading needed for development)
+uvicorn[standard]
+gunicorn
+
+# Database/Vector Store Connectors
+psycopg2-binary
+sqlalchemy
+numpty
+# You will likely need additional libraries based on your AI toolkit, e.g.:
+# For using pgvector easily: pgvector-python
+# For Local LLMs: ollama (or an embedding model library like sentence-transformers)
