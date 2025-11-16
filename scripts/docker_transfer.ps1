@@ -49,8 +49,39 @@ function StartContainers {
     # This uses the specific, corrected command structure to ensure all required dev services start properly.
     docker compose -p lifebuddy up -d dev_db app cognitive-engine pgadmin open_webui ollama
     
+    # --- START OF NEW WAIT/RETRY LOGIC ---
+    $OllamaReady = $false
+    $MaxRetries = 12
+    $RetryCount = 0
+    $WaitTimeSeconds = 5
+
+    Write-Host "Waiting for Ollama API to be ready (up to $($MaxRetries * $WaitTimeSeconds) seconds)..." -ForegroundColor Magenta
+    
+    while (-not $OllamaReady -and $RetryCount -lt $MaxRetries) {
+        # Use curl to check if the Ollama API's health endpoint is reachable
+        # We use a temp container for this check since the core services might not be fully up yet.
+        # Check if the service name 'ollama' is resolvable and the port is listening.
+        docker compose exec ollama curl -s --fail http://ollama:11434/api/tags 2>&1 | Out-Null
+
+        if ($LASTEXITCODE -eq 0) {
+            $OllamaReady = $true
+            Write-Host "✅ Ollama API is ready." -ForegroundColor Green
+        }
+        else {
+            $RetryCount++
+            Write-Host "Ollama not ready. Retrying in $($WaitTimeSeconds)s... (Attempt $($RetryCount)/$MaxRetries)" -ForegroundColor Yellow
+            Start-Sleep -Seconds $WaitTimeSeconds
+        }
+    }
+    
+    if (-not $OllamaReady) {
+        Write-Host "❌ Error: Ollama API failed to start after multiple retries. Skipping model pull." -ForegroundColor Red
+        return # Exit the function early if Ollama isn't ready
+    }
+    # --- END OF NEW WAIT/RETRY LOGIC ---
+
     # Pull the latest Mistral model into the running Ollama container
-    Write-Host "Checking for and pulling the latest Mistral model for Ollama..." -ForegroundColor Magenta
+    Write-Host "Pulling the latest Mistral model for Ollama..." -ForegroundColor Magenta
     # Use 'docker compose exec' to run the ollama command inside the running 'ollama' service container
     docker compose exec ollama ollama pull mistral
     
@@ -59,7 +90,7 @@ function StartContainers {
     }
     else {
         # The ollama container might take a moment to be ready, hence the warning instead of failure.
-        Write-Host "⚠️ Warning: Ollama model pull failed. The container may not be fully ready yet, or the 'mistral' model may not be available." -ForegroundColor Yellow
+        Write-Host "⚠️ Warning: Ollama model pull failed. Check the container logs." -ForegroundColor Yellow
     }
 }
 
