@@ -47,7 +47,7 @@ function StopAndRemoveOrphans {
 function StartContainers {
     Write-Host "Starting all development services..." -ForegroundColor Green
     # This uses the specific, corrected command structure to ensure all required dev services start properly.
-    docker compose up -d dev_db app cognitive-engine pgadmin open_webui ollama
+    docker compose -p lifebuddy up -d dev_db app cognitive-engine pgadmin open_webui ollama
     
     # Pull the latest Mistral model into the running Ollama container
     Write-Host "Checking for and pulling the latest Mistral model for Ollama..." -ForegroundColor Magenta
