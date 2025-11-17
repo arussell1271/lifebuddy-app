@@ -1,60 +1,51 @@
-# UI Technical Specifications
+# ⚙️ UI Technical Specification: The Holistic Cognitive Data Engine
 
+**File Path:** 06 ui technical specifications.md
+**Audience:** Full-Stack Engineers, Backend Developers, UI Developers.
 
+---
 
-This document details the concrete interfaces the App exposes, including API endpoints, directory structure, and specific data formats (Pydantic schemas).
+## 💡 Instructions for Use
 
+1. **Scope:** Defines the technical implementation, required **FastAPI API Contracts** on the App Service, client-side state management, and the overall front-end architecture.
+2. **Adherence:** Must strictly conform to the **App/Engine Service Separation** and the **Asynchronous Processing Flow** constraint.
+3. **Security:** All API contracts must align with the **RLS** mandate by ensuring the client can acquire and use a JWT.
 
+---
 
-1. Directory and Module Structure
+## I. Core Client Stack Definition
 
-   Define the location for all new Python components:
+| Layer | Recommended Technology | Rationale / Notes |
+| :--- | :--- | :--- |
+| **Client Framework** | **Vue 3** (Composition API) | Highly performant, reactive, and scalable for complex interfaces. |
+| **State Management** | **Pinia** | Lightweight, type-safe, and modular state management for Vue 3. |
+| **Styling** | **Tailwind CSS** | Utility-first approach ensures rapid, responsive development (mobile-first primary target). |
 
-   app/data/models/: New SQLAlchemy ORM models (conversation\_model.py, message\_model.py, user\_setting\_model.py, advisor\_model.py).
-   app/api/schemas/: New Pydantic schemas (conversation\_schema.py, message\_schema.py, user\_setting\_schema.py).
-   app/api/routes/: New FastAPI endpoints (conversations.py, settings.py).
-   engine/tasks/: The Engine-side worker definitions for processing chat requests.
-   
-2. API Endpoint Specification (App/Body)
+## II. Feature: User Authentication (Auth)
 
-   Specify the RESTful interface for the new features. All endpoints must rely on the RLS session hook dependency.
+### 2.1 API Contracts (App Service - `app/api/v1/auth`)
 
-   Feature         Method                 Endpoint        Pydantic Schema (Input/Output)                  Function                                Responsibility                  Start      
-   Chat            POST      /v1/conversations/           Input: {advisor\_id} / Output: ConversationOut   Initializes a new conversation record.  App                    Get
-   History         GET       /v1/conversations/           Output: List\[ConversationSummaryOut]            Retrieves all conversation metadata (title, date) for the user (RLS).     App      Get
-   TranscriptGET/v1/conversations/{id}/messagesOutput: List\[MessageOut]Retrieves all messages in a specific conversation (RLS).AppSend MessagePOST/v1/conversations/{id}/messagesInput: MessageCreate / Output: MessageOut (User's message)Writes message to DB, Queues task to Engine. Returns 202 Accepted.AppGet SettingsGET/v1/settings/Output: UserSettingsOutRetrieves the current user preferences (RLS).AppUpdate SettingsPATCH/v1/settings/Input: UserSettingsUpdate / Output: UserSettingsOutUpdates user preferences (RLS).App
+#### A. User Login: Token Acquisition
 
+| Property | Value |
+| :--- | :--- |
+| **Endpoint** | `POST /api/v1/auth/token` |
+| **Description** | Authenticates the user and generates a JWT. |
+| **Request Schema (Body)** | `username`: string (or email); `password`: string |
+| **Success Response (200 OK)** | `access_token`: string (JWT); `token_type`: "bearer" |
+| **Security Action (CRITICAL)** | App middleware **MUST** extract the `user_id` from the JWT payload and use it to execute: `SET app.current_user_id = '<user_uuid>';` for all subsequent database interactions. |
 
+#### B. Request Password Reset (App-to-Engine Asynchronous Delegation)
 
-3\. Critical Pydantic Schema Definitions
+| Property | Value |
+| :--- | :--- |
+| **Endpoint** | `POST /api/v1/auth/request-password-reset` |
+| **Constraint Adherence** | App immediately queues the request for the **Engine Service** via the message queue (Redis/RabbitMQ). |
+| **Success Response (202 Accepted)**| `detail`: "Password reset request accepted and queued." |
 
-Focus on data integrity and security, ensuring user\_id is never accepted as input and not unnecessarily returned as output.
+### 2.2 Client-Side Implementation Details
 
-
-
-MessageCreate (Input Schema for chat):
-
-
-
-class MessageCreate(BaseModel):
-
-&nbsp;   content: str = Field(..., max\_length=4096)
-
-&nbsp;   # The message should not include 'user\_id' or 'conversation\_id' in the payload;
-
-&nbsp;   # they are derived from the authenticated session and URL path, respectively.
-
-UserSettingsUpdate (Input Schema for preferences):
-
-class UserSettingsUpdate(BaseModel):
-
-&nbsp;   # Nullable fields allow for partial updates (PATCH)
-
-&nbsp;   system\_mode: str | None = Field(None, description="e.g., 'spiritual', 'neutral'")
-
-&nbsp;   health\_access\_enabled: bool | None = None
-
-&nbsp;   # Use JSON for flexible storage of advisor name overrides
-
-&nbsp;   advisor\_names: dict\[str, str] | None = Field(None, description="Key: Advisor ID, Value: Custom Name")
-
+| Component | Responsibility | Technical Notes |
+| :--- | :--- | :--- |
+| **Auth Store (Pinia)**| Global state for token, user details, and authentication status. | Store the JWT in **Session Storage** or an **HTTP-only Cookie** (preferred for security). **Do NOT use Local Storage.** |
+| **HTTP Interceptor**| Security layer for all API communication. | Automatically inject the saved JWT into the `Authorization: Bearer <token>` header for every protected route call. |

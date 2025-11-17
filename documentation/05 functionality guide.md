@@ -1,52 +1,34 @@
-# Functionality Guide
+# 📘 Functional Guide: The Holistic Cognitive Data Engine
 
+**File Path:** 05 functionality guide.md
+**Audience:** Product Managers, UI/UX Designers, Quality Assurance (QA).
 
+---
 
-This document defines the high-level system behaviors, data relationships, and the necessary separation of duties between the 'Body' and the 'Brain'.
+## 💡 Instructions for Use
 
+1. **Scope:** Defines the intended user behavior, business logic, and high-level interaction models for the client application.
+2. **Constraint:** Must **NEVER** mention specific technical details like API endpoints, database tables, or backend service logic (App/Engine).
+3. **Goal:** Serves as the single source of truth for user flows and acceptance criteria for all features.
 
+---
 
-1\. Architectural Mandates \& Service Allocation
+## Feature: User Authentication & Onboarding
 
-Asynchronous Rule: Re-state the constraint that the App must never wait for the Engine for cognitive tasks (e.g., chat response, vector generation).
+### 1.1 Login Screen
 
+**User Goal:** Access their personalized data securely.
 
+| Element | Functional Requirement / Business Rule | UX & Interaction Details |
+| :--- | :--- | :--- |
+| **Login Form** | Requires a valid Username (or Email) and a Password from the **`users`** table. | Form submission is disabled until both fields are non-empty. |
+| **Password Visibility** | Must allow the user to view the password for verification. | A visible 'eye' icon must appear next to the password field, toggling the input mask. |
+| **Failed Login** | If credentials validation fails. | Display a generic, temporary error message: "Invalid username or password. Please try again." |
+| **Account Recovery Links**| Provides pathways for account recovery. | Must clearly present two separate, functional links: **"Forgot Password?"** and **"Forgot Username?"** |
 
-App Responsibilities: User authentication, API serving, UI data provision (history, settings), initial data persistence (writes to documents, conversations, messages, user\_settings), and message queue submission.
+### 1.2 Forgot Password Flow (Recovery)
 
+**Business Rule:** The system must use a secure, time-limited token delivered via email to allow a password change.
 
-
-Engine Responsibilities: Natural Language Generation (chat response), Intent Routing (future V2), Vector Embedding generation (for RAG), data retrieval (to build RAG context), and writing vector results (to document\_vectors).
-
-
-
-2\. Data Flow: Conversation Management (Chat)
-
-Conversation Start: App creates a new record in the conversations table (App-only write).
-
-
-
-Message Ingestion: App writes the user's message to the messages table, referencing the conversation\_id. RLS must be active.
-
-
-
-Asynchronous Chat Request: App sends a job to the Message Queue (MQ) containing: user\_id, conversation\_id, message\_id, advisor\_id, and system\_mode (from user\_settings).
-
-
-
-Engine Processing: Engine retrieves job from MQ. It executes a DB query (with RLS set via SET app.current\_user\_id) to fetch the necessary system\_prompt\_template and any relevant RAG context (via vector search). Engine generates the response.
-
-
-
-Response Persistence: Engine writes the advisor's response directly to the messages table, using the same conversation\_id and the Engine's authenticated session (RLS in effect).
-
-
-
-3\. Data Flow: Settings \& Preferences
-
-RLS-Secured Settings: Document that the user\_settings table is the single source for all preferences and is secured by RLS on user\_id.
-
-
-
-Health Data Integration: The App service is responsible for managing the external API connection (e.g., Apple Health). Any fetched raw data must be immediately stored in the RLS-secured health\_metrics table or queued to the Engine for processing/summarization, adhering to the asynchronous rule.
-
+* **Step 1: Request**: User submits their email address.
+* **System Response**: The system must instantly display a confirmation message, *regardless of whether the email exists*, to prevent user enumeration: "If a matching account is found, a password reset link will be sent to your email shortly."
