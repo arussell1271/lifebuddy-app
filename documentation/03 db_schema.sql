@@ -39,6 +39,10 @@ CREATE TABLE users (
     created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- The 'users' table is updated to support different roles for RLS and portal access.
+ALTER TABLE users ADD COLUMN user_type VARCHAR(20) NOT NULL DEFAULT 'PRIMARY' 
+    CHECK (user_type IN ('PRIMARY', 'PROFESSIONAL', 'RESEARCHER'));
+
 -- =========================================================================
 -- 2. ACTIONABLE ITEMS (The 'Goal/Task' definition - EXECUTE component)
 -- =========================================================================
@@ -60,6 +64,10 @@ CREATE TABLE actionable_items (
     created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- The 'user_preferences' table is updated to store the user-defined Synthesis Matrix.
+-- This JSONB object controls data retrieval and weighting for the Cognitive Engine.
+ALTER TABLE user_preferences ADD COLUMN synthesis_matrix JSONB;
 
 -- ------------------------------
 -- RLS Policy on actionable_items
@@ -190,6 +198,28 @@ CREATE TABLE user_preferences (
     updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Stores explicit, revokable consent for professionals (Secondary Users) to access a Primary User's data.
+CREATE TABLE data_access_grants (
+    grant_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    primary_user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    professional_user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE RESTRICT,
+    
+    -- Defines granular, user-scoped consent (e.g., {"health_metrics": true, "cultivate_data": false, "start_date": "YYYY-MM-DD"})
+    access_scope JSONB NOT NULL, 
+    
+    granted_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    revoked_at TIMESTAMP WITHOUT TIME ZONE, -- If populated, access is denied.
+    
+    UNIQUE (primary_user_id, professional_user_id)
+);
+
+-- RLS POLICY UPDATE MANDATE (CRITICAL):
+-- All RLS-enabled tables (documents, health_metrics, adherence_log, etc.) MUST be updated 
+-- to allow access if: 
+-- 1. current_user_id = row.user_id (Primary User access), OR
+-- 2. current_user_id is in data_access_grants AND the grant is NOT revoked AND the access_scope 
+--    permits the data type being queried.
+
 -- ---------------------------------
 -- RLS Policy on user_preferences (CRITICAL)
 -- ---------------------------------
@@ -202,7 +232,7 @@ CREATE POLICY user_isolation_preferences ON user_preferences
 CREATE INDEX idx_preferences_user ON user_preferences (user_id);
 
 -- =========================================================================
--- 9. COGNITIVE DEFINITIONS (System Configuration - Non-RLS Global Data)
+-- 8. COGNITIVE DEFINITIONS (System Configuration - Non-RLS Global Data)
 -- =========================================================================
 
 -- Stores the base prompts, modifier prompts (e.g., 'TAROT' mode), and roles 
@@ -223,6 +253,29 @@ CREATE TABLE cognitive_definitions (
 
 -- NOTE: This table is not RLS-enabled. It contains global configuration
 -- accessible by the Engine's full-privilege user (`cognitive_engine_full`).
+
+-- Stores aggregated, anonymized metrics to measure the system's effectiveness 
+-- against the core hypotheses (H1, H2, H3).
+CREATE TABLE cognitive_efficacy_metrics (
+    metric_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    
+    -- The hypothesis or area being measured (e.g., 'H3_OVERALL_ADHERENCE', 'H2_PREDICTION_ACCURACY')
+    metric_key VARCHAR(100) NOT NULL, 
+    
+    -- The calculated effectiveness score (e.g., 0.84 for 84% adherence)
+    metric_value NUMERIC(5, 4) NOT NULL, 
+    
+    time_period_start DATE NOT NULL,
+    
+    -- Optional: Allows filtering metrics by advisor or cohort
+    advisor_scope VARCHAR(50), 
+    cohort_identifier VARCHAR(50), 
+    
+    calculated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- NOTE: This table is not RLS-enabled. It contains global, aggregate metrics
+-- for the Engine Service's internal analytics/reporting system.
 
 -- =========================================================================
 -- 9. INDEXES FOR PERFORMANCE

@@ -80,10 +80,11 @@ The App Service mediates all user interactions with the preference data.
 
 | Property | Value |
 | :--- | :--- |
-| **Endpoint** | `GET /api/v1/user-preferences` |
-| **Method** | GET |
+| **Endpoint** | `PATCH /api/v1/user-preferences` |
+| **Method** | PATCH |
 | **Authentication** | Required (JWT for RLS context) |
-| **Success Response (200 OK)**| `spiritual_mode`: string, `advisor_name_spiritual`: string, etc. |
+| **Request Schema (Body)** | Subset of preferences to update. Now accepts the optional field: `synthesis_matrix: JSONB` |
+| **Notes** | The App Service validates the JSON format and saves it directly to the database. The Engine Service is responsible for interpreting and executing the logic defined within the `synthesis_matrix`. |
 
 #### B. Update User Preferences
 
@@ -102,3 +103,37 @@ The App Service mediates all user interactions with the preference data.
 | **Preferences Store (Pinia)**| Manages the state of the preferences object. | Fetch data on mount of the settings route. Use optimistic updates upon patch requests. |
 | **UI Components** | Input fields for names, radio groups/dropdowns for modes and tones. | Implement using **Tailwind CSS** for responsive design (mobile-first primary). Ensure validation matches database constraints (e.g., for Spiritual Mode choices). |
 | **HTTP Requests** | `GET` on load, `PATCH` on save/change. | Must use the authenticated HTTP Interceptor to ensure JWT is passed. |
+
+### IV. Feature: Professional Collaboration & Secure Sharing (NEW)
+
+The App Service mediates all consent and access management (via the `data_access_grants` table) to ensure RLS is correctly enforced by the database.
+
+#### 4.1 API Contracts (App Service - `app/api/v1/data-grants`)
+
+| Property | Value |
+| :--- | :--- |
+| **Endpoint** | `POST /api/v1/data-grants/grant` |
+| **Method** | POST |
+| **Authentication** | Required (JWT for Primary User) |
+| **Purpose** | Primary User grants granular access to a Professional. |
+| **Request Body** | `professional_email`: string (The target professional's account), `access_scope`: JSONB (defines the data types/time window permitted). |
+
+| Property | Value |
+| :--- | :--- |
+| **Endpoint** | `POST /api/v1/data-grants/revoke/{professional_user_id}` |
+| **Method** | POST |
+| **Authentication** | Required (JWT for Primary User) |
+| **Purpose** | Primary User immediately revokes access. Revocation updates the `revoked_at` timestamp in the database, instantly denying RLS-controlled access. |
+| **Request Body** | N/A |
+
+#### 4.2 API Contracts (Engine Service Proxy - `engine/api/v1/professional-synthesis`)
+
+| Property | Value |
+| :--- | :--- |
+| **Endpoint** | `POST /api/v1/professional-synthesis` |
+| **Method** | POST |
+| **Authentication** | Required (JWT for **Professional User**). |
+| **Purpose** | Professional requests a holistic synthesis report for their linked client (Primary User). |
+| **Request Body** | `client_user_id`: UUID (The UUID of the client), `query_context`: string (The professional's question, e.g., "Analyze their sleep patterns for the last 90 days"). |
+| **Engine Action** | The Engine performs the full Cognitive Synthesis. Data retrieval is strictly filtered by the RLS policy, which checks the professional's `access_scope` in `data_access_grants` to ensure only consented data is used in the synthesis. |
+| **Success Response** | Returns the synthesized, consent-filtered holistic report (e.g., JSON or TEXT). |

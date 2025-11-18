@@ -85,3 +85,33 @@
 | **Advisor Role Templates** | Each core advisor must have a base, non-user-specific definition that outlines its core purpose and persona. | This defines the 'default' identity for the advisor. |
 | **Preference Modifiers** | The system must define specific *modifier* templates that activate based on user selections in the **User Preferences** screen (e.g., Spiritual Mode, Tone). | These modifiers are dynamically applied by the Cognitive Engine during **Cognitive Synthesis**. |
 | **Dynamic Assembly Mandate** | The App Service (The Body) must **NEVER** contain or access the proprietary content of the Advisor Role Templates or Preference Modifiers. The App only manages the user's selection (e.g., "TAROT"), and the Engine retrieves the corresponding proprietary instructions based on that selection. | This strictly enforces the **App/Engine separation**, protecting the proprietary instructional content. |
+
+### 2.4 Cognitive Personalization (The User's Engine Control)
+
+**Business Goal:** Allow Primary Users to customize the synthesis logic, controlling which advisors interact and how data is weighted, to create a powerful, bespoke cognitive co-pilot.
+
+| Element | Functional Requirement / Business Rule | Contextual Rule |
+| :--- | :--- | :--- |
+| **Advisor Interaction Control** | The user must be able to explicitly select which secondary data sources (Cultivate, Execute, Contribute) are considered by the primary advisor during a Holistic Query. | The user can mandate that the Health Advisor use Dream Analysis but *exclude* Spiritual (Tarot/Journaling) data from its synthesis. |
+| **Data Weighting Control** | The user must be able to specify granular retrieval criteria (quantity, recency, relevance) for each enabled data source. | The user can specify: "Retrieve the **Top 4** most semantically relevant Dream entries," or "Only include the **Most Recent** Tarot Reading," or "Use **Zero** data points from the Health Insights source." |
+| **Configuration Persistence** | All custom advisor interaction and weighting settings must be saved to the user's profile and automatically applied to all subsequent Holistic Queries until changed. | This ensures a consistent, personalized cognitive experience across all client sessions. |
+
+### 2.5 Professional Collaboration & Secure Sharing
+
+**Business Goal:** Empower the Primary User to selectively share their full historical (Conscious, Unconscious, and Actionable) data with vetted Secondary Users (doctors, dieticians, researchers) to facilitate advanced collaborative care.
+
+| Element | Functional Requirement / Business Rule | Contextual Rule |
+| :--- | :--- | :--- |
+| **Granular Consent Interface** | The Primary User must have a clear interface to grant or revoke access, defining the **exact scope** of data the Professional can view (e.g., only Health Metrics, all data, or only data after a specific date). | Access must be based on a time-bound or data-type-bound consent that can be **immediately revoked** by the user via a single action. |
+| **Professional Pre-Analysis Report** | The Secondary User (Professional) must access a dedicated Portal where they can request a **Cognitive Synthesis Report** for their linked client (Primary User). | This report leverages the system's core analytical capabilities to show **subconscious blocks, adherence patterns, and correlation themes** derived from the client's historical data, delivered *prior* to a physical appointment. |
+| **Data Sovereignty Mandate** | The system must guarantee that any data requested by the Professional is filtered according to the user's current, active consent rules. | If the user revokes consent, the Professional's access is instantly terminated. |
+
+### 2.6 System Effectiveness Monitoring
+
+**Business Goal:** The system must continuously track and validate the core hypotheses (H1, H2, H3) to provide empirical evidence of the system's value and guide future development.
+
+| Element | Functional Requirement / Business Rule | Contextual Rule |
+| :--- | :--- | :--- |
+| **Hypothesis Tracking (H2)** | The system must run scheduled, background processes to calculate the **prediction accuracy** of Cultivate data (Dream/Spiritual themes) in forecasting Execute failures (Actionable Item non-adherence) within a defined future window (e.g., 3-5 days). | This process provides quantitative evidence of the system's ability to identify unconscious behavioral blocks. |
+| **Holistic Outcome Metering (H3)** | The system must calculate and log the overall user adherence rate to **Holistic Actionable Items**, correlating it with positive changes in clinical/health markers (Contribute data). | This metric provides the longitudinal evidence required to demonstrate the system's effectiveness for sustained change. |
+| **Internal Research Data** | The aggregate system effectiveness metrics must be stored in a dedicated, **anonymized** research data store separate from individual user content. | This data store is used for internal analysis, not for user-facing features, ensuring separation of research and user data. |

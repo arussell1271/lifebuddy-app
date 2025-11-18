@@ -73,10 +73,12 @@ All logic must adhere to the **Principle of Least Privilege (PoLP)** enforced by
 
 #### A. Row-Level Security (RLS) Mandate
 
-**RLS is the primary security boundary** for all user data and **MUST** be enabled on all tables containing user-specific information (`actionable_items`, `adherence_log`, `documents`, `health_metrics`, `document_vectors`).
+**CRITICAL MANDATE: All tables containing user-specific data (e.g., `documents`, `health_metrics`, `adherence_log`) MUST have RLS policies enabled, ensuring that data is only visible under the following two conditions:**
 
-* The application must set the **`app.current_user_id`** session variable immediately after successful user authentication.
-* All database queries executed by the `lifebuddy_rw` user will be **automatically filtered** by the PostgreSQL RLS policy, making it impossible for a developer error in the API logic to expose another user's data.
+1. **Primary User Access:** The `current_user_id` context equals the `row.user_id`. (The default and perpetual rule).
+2. **Secondary User Access (NEW):** The `current_user_id` must be found as a `professional_user_id` in the **`data_access_grants`** table, and the corresponding grant must be **active (`revoked_at` IS NULL)** and its **`access_scope` JSONB field must permit the viewing of the specific data type being queried.**
+
+This two-factor RLS check is the single, non-negotiable security layer for all collaborative features.
 
 #### B. Logic Location
 
