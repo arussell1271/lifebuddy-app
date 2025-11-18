@@ -60,3 +60,45 @@
 | :--- | :--- | :--- |
 | **Auth Store (Pinia)**| Global state for token, user details, and authentication status. | Store the JWT in **Session Storage** or an **HTTP-only Cookie** (preferred for security). **Do NOT use Local Storage.** |
 | **HTTP Interceptor**| Security layer for all API communication. | Automatically inject the saved JWT into the `Authorization: Bearer <token>` header for every protected route call. |
+
+## III. Feature: User Preferences and Cognitive Configuration
+
+### 3.1 Database Schema Additions
+
+A new table, `user_preferences`, is required to store user-specific cognitive configuration, secured by RLS.
+
+| Table | RLS Policy | Columns and Constraints |
+| :--- | :--- | :--- |
+| `user_preferences` | **Mandatory** using `user_id = get_current_user_id()`. | `user_id` (UUID, PK, FK to `users`); `advisor_name_spiritual` (VARCHAR); `spiritual_mode` (VARCHAR, CHECK IN 'TAROT', 'GOD', 'NEUTRAL'); `spiritual_tone` (VARCHAR, CHECK IN 'GUIDANCE', 'MENTOR', 'EXPERT'); `health_data_ingestion` (VARCHAR, CHECK IN 'APPLE_HEALTH', 'DIRECT_DB'). |
+| `cognitive_definitions` | **NONE** (Global Data) | `definition_key` (VARCHAR, PK); `advisor_role` (VARCHAR, e.g., 'CULTIVATE'); `system_prompt_template` (TEXT); `version` (INT). *Note: This table is read-only for the Engine; it is managed by an Administration service, not the App or Engine.* |
+
+### 3.2 API Contracts (App Service - `app/api/v1/user-preferences`)
+
+The App Service mediates all user interactions with the preference data.
+
+#### A. Get User Preferences
+
+| Property | Value |
+| :--- | :--- |
+| **Endpoint** | `GET /api/v1/user-preferences` |
+| **Method** | GET |
+| **Authentication** | Required (JWT for RLS context) |
+| **Success Response (200 OK)**| `spiritual_mode`: string, `advisor_name_spiritual`: string, etc. |
+
+#### B. Update User Preferences
+
+| Property | Value |
+| :--- | :--- |
+| **Endpoint** | `PATCH /api/v1/user-preferences` |
+| **Method** | PATCH |
+| **Authentication** | Required (JWT for RLS context) |
+| **Request Schema (Body)** | Subset of preferences to update (e.g., `spiritual_mode`: "TAROT") |
+| **Success Response (200 OK)**| The full, updated preferences object. |
+
+### 3.3 Client-Side Implementation: Preferences Screen
+
+| Component | Responsibility | Technical Notes |
+| :--- | :--- | :--- |
+| **Preferences Store (Pinia)**| Manages the state of the preferences object. | Fetch data on mount of the settings route. Use optimistic updates upon patch requests. |
+| **UI Components** | Input fields for names, radio groups/dropdowns for modes and tones. | Implement using **Tailwind CSS** for responsive design (mobile-first primary). Ensure validation matches database constraints (e.g., for Spiritual Mode choices). |
+| **HTTP Requests** | `GET` on load, `PATCH` on save/change. | Must use the authenticated HTTP Interceptor to ensure JWT is passed. |

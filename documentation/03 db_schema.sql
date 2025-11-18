@@ -168,13 +168,69 @@ CREATE POLICY user_isolation_document_vectors ON document_vectors
     USING (user_id = get_current_user_id())
     WITH CHECK (user_id = get_current_user_id());
 
+-- =========================================================================
+-- 7. USER PREFERENCES (Configuration - Supports all components)
+-- =========================================================================
+
+CREATE TABLE user_preferences (
+    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, -- One-to-one relationship with users
+    
+    -- Advisor Naming
+    advisor_name_spiritual VARCHAR(100) DEFAULT 'The Cultivator',
+    advisor_name_action VARCHAR(100) DEFAULT 'The Executor',
+    advisor_name_health VARCHAR(100) DEFAULT 'The Contributor',
+
+    -- Spiritual Advisor Configuration (Used by the Cognitive Engine)
+    spiritual_mode VARCHAR(50) NOT NULL CHECK (spiritual_mode IN ('TAROT', 'GOD', 'NEUTRAL')) DEFAULT 'NEUTRAL', 
+    spiritual_tone VARCHAR(50) NOT NULL CHECK (spiritual_tone IN ('GUIDANCE', 'MENTOR', 'EXPERT')) DEFAULT 'MENTOR',
+    
+    -- Health Advisor Configuration (Data Ingestion)
+    health_data_ingestion VARCHAR(50) NOT NULL CHECK (health_data_ingestion IN ('APPLE_HEALTH', 'DIRECT_DB')) DEFAULT 'DIRECT_DB',
+    
+    updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ---------------------------------
+-- RLS Policy on user_preferences (CRITICAL)
+-- ---------------------------------
+ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
+CREATE POLICY user_isolation_preferences ON user_preferences
+    USING (user_id = get_current_user_id())
+    WITH CHECK (user_id = get_current_user_id());
+
+-- Index for performance on the primary access column
+CREATE INDEX idx_preferences_user ON user_preferences (user_id);
 
 -- =========================================================================
--- 7. INDEXES FOR PERFORMANCE
+-- 9. COGNITIVE DEFINITIONS (System Configuration - Non-RLS Global Data)
+-- =========================================================================
+
+-- Stores the base prompts, modifier prompts (e.g., 'TAROT' mode), and roles 
+-- for the Cognitive Engine (The Brain).
+CREATE TABLE cognitive_definitions (
+    definition_key VARCHAR(100) PRIMARY KEY, -- Unique key (e.g., 'CULTIVATE_BASE', 'CULTIVATE_MODE_TAROT')
+    
+    advisor_role VARCHAR(50) NOT NULL CHECK (advisor_role IN ('CULTIVATE', 'EXECUTE', 'CONTRIBUTE')), -- The macro-advisor this definition belongs to
+    
+    -- The core instruction/prompt text used by the LLM
+    system_prompt_template TEXT NOT NULL,
+    
+    description VARCHAR(255), -- Internal description for admin/version control
+    version INT NOT NULL DEFAULT 1,
+    
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- NOTE: This table is not RLS-enabled. It contains global configuration
+-- accessible by the Engine's full-privilege user (`cognitive_engine_full`).
+
+-- =========================================================================
+-- 9. INDEXES FOR PERFORMANCE
 -- =========================================================================
 
 CREATE INDEX idx_actionable_user_type ON actionable_items (user_id, item_type);
 CREATE INDEX idx_adherence_user_date ON adherence_log (user_id, log_date);
 CREATE INDEX idx_documents_user_type ON documents (user_id, document_type);
 CREATE INDEX idx_health_metrics_user_date ON health_metrics (user_id, recorded_at);
+CREATE INDEX idx_preferences_user ON user_preferences (user_id);
 ```eof
