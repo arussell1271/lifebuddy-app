@@ -4,6 +4,7 @@
 -- What to Include
 -- The full, current SQL Data Definition Language (DDL) for all tables, indexes, extensions (pgvector), and Row-Level Security (RLS) policies.
 
+-- CRITICAL INSTRUCTION: Any schema change that involves user-owned data MUST include RLS using get_current_user_id().
 
 # 03_DB_SCHEMA.sql: Current Database Schema (Version 1.1) - Cultivate → Execute → Contribute
 

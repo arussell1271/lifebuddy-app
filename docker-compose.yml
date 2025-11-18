@@ -82,7 +82,6 @@ services:
       - ollama
     networks:
       - frontend-network # Accessible by user (browser)
-      - core-network     # Can talk to dev_db/ollama
     profiles: [ "dev" ]
     restart: always
     

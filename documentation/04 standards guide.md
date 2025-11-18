@@ -88,4 +88,12 @@ All logic must adhere to the **Principle of Least Privilege (PoLP)** enforced by
 * **In Transit:** All API communication (internal and external) must be secured (HTTPS/TLS).
 * **At Rest:** The entire PostgreSQL instance must be secured with a robust encryption strategy (e.g., TDE or file-system level encryption).
 * **Vector Store:** The `document_vectors` table is secured by the combination of network isolation, a high-privilege user (`cognitive_engine_full`), and mandatory **RLS**.
-```eof
+
+### 5. Documentation Scoping Standard
+
+All project documentation must strictly adhere to the Principle of Documentation Separation:
+
+#### A. The Technical/Functional Barrier (Mandatory)
+
+* **Functional Documents** (`05 functionality guide.md`, etc.): **MUST ONLY** use business and functional terms (e.g., "User Identity Store," "Actionable Item," "Cognitive Synthesis"). These documents **MUST NEVER** reference technical implementation details (e.g., table names like `users`, `actionable_items`; API routes like `/api/v1/health-metrics`; or service names like `Engine Service`).
+* **Technical Documents** (`06 ui technical specifications.md`, etc.): **MUST** define the explicit mapping from functional terms to implementation details (e.g., mapping "User Identity Store" to the `users` table).

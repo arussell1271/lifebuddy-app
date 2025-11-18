@@ -8,7 +8,7 @@
 ## 💡 Instructions for Use
 
 1. **Scope:** Defines the technical implementation, required **FastAPI API Contracts** on the App Service, client-side state management, and the overall front-end architecture.
-2. **Adherence:** Must strictly conform to the **App/Engine Service Separation** and the **Asynchronous Processing Flow** constraint.
+2. **Adherence (CRITICAL):** Must strictly conform to the **App/Engine Service Separation** and the **Asynchronous Processing Flow** constraint (App never waits for the Engine).
 3. **Security:** All API contracts must align with the **RLS** mandate by ensuring the client can acquire and use a JWT.
 
 ---
@@ -35,7 +35,18 @@
 | **Success Response (200 OK)** | `access_token`: string (JWT); `token_type`: "bearer" |
 | **Security Action (CRITICAL)** | App middleware **MUST** extract the `user_id` from the JWT payload and use it to execute: `SET app.current_user_id = '<user_uuid>';` for all subsequent database interactions. |
 
-#### B. Request Password Reset (App-to-Engine Asynchronous Delegation)
+#### B. User Registration: Account Creation
+
+| Property | Value |
+| :--- | :--- |
+| **Endpoint** | `POST /api/v1/auth/register` (Adheres to `kebab-case` standard) |
+| **Description** | Creates a new user record (UUID, Email, Username, Hashed Password) in the `users` table and immediately returns an authentication token. |
+| **Request Schema (Body)** | `email`: string; `username`: string; `password`: string |
+| **Success Response (201 Created)**| `access_token`: string (JWT); `token_type`: "bearer" |
+| **Failure Response (409 Conflict)**| If the provided email or username already exists in the `users` table. |
+| **Security Action (CRITICAL)** | Upon token generation, the App middleware **MUST** extract the `user_id` from the JWT payload and use it to execute: `SET app.current_user_id = '<user_uuid>';` for all subsequent database interactions. |
+
+#### C. Request Password Reset (App-to-Engine Asynchronous Delegation)
 
 | Property | Value |
 | :--- | :--- |
