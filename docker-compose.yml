@@ -104,7 +104,6 @@ services:
       - ollama
     networks:
       - frontend-network # Accessible by user (browser)
-      - core-network     # Can talk to prod_db/ollama
     profiles: [ "prod" ]
     restart: always
     

@@ -9,7 +9,8 @@ gunicorn
 # Database/Vector Store Connectors
 psycopg2-binary
 sqlalchemy
-numpty
+numpy
+pgvector-python
 # You will likely need additional libraries based on your AI toolkit, e.g.:
 # For using pgvector easily: pgvector-python
 # For Local LLMs: ollama (or an embedding model library like sentence-transformers)
