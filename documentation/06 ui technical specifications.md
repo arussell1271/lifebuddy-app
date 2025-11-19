@@ -104,36 +104,42 @@ The App Service mediates all user interactions with the preference data.
 | **UI Components** | Input fields for names, radio groups/dropdowns for modes and tones. | Implement using **Tailwind CSS** for responsive design (mobile-first primary). Ensure validation matches database constraints (e.g., for Spiritual Mode choices). |
 | **HTTP Requests** | `GET` on load, `PATCH` on save/change. | Must use the authenticated HTTP Interceptor to ensure JWT is passed. |
 
-### IV. Feature: Professional Collaboration & Secure Sharing (NEW)
+## IV. Feature: Professional Collaboration & Secure Sharing
 
 The App Service mediates all consent and access management (via the `data_access_grants` table) to ensure RLS is correctly enforced by the database.
 
-#### 4.1 API Contracts (App Service - `app/api/v1/data-grants`)
+### 4.0 Client-Side Role-Based Rendering (Vue/Pinia)
+
+The client application must implement a state check on successful authentication to route the user based on their assigned role.
+
+| Property | Value | Rationale |
+| :--- | :--- | :--- |
+| **Client State Variable** | `Pinia.user_store.user_role: string` (`PRIMARY_USER` or `SECONDARY_USER`) | Determines UI context for authorization and rendering. |
+| **Secondary User Route** | Navigate to `/professional/portal`. | Dedicated Portal Access. |
+
+### 4.1 API Contracts (App Service - `app/api/v1/data-grants`) - Primary User Actions
+
+... (Keep existing `POST /data-grants/grant` and `POST /data-grants/revoke/{professional_user_id}` as is) ...
+
+#### 4.1.A Client List Retrieval (NEW)
 
 | Property | Value |
 | :--- | :--- |
-| **Endpoint** | `POST /api/v1/data-grants/grant` |
-| **Method** | POST |
-| **Authentication** | Required (JWT for Primary User) |
-| **Purpose** | Primary User grants granular access to a Professional. |
-| **Request Body** | `professional_email`: string (The target professional's account), `access_scope`: JSONB (defines the data types/time window permitted). |
+| **Endpoint** | `GET /api/v1/professionals/clients` |
+| **Method** | GET |
+| **Authentication** | Required (JWT for **Secondary User**). |
+| **Purpose** | Retrieves a list of active client UUIDs consented to this Professional, filtered by an active `data_access_grants` record. |
+| **Response Body (Example)** | `[{"client_user_id": UUID, "client_username": "client.user", "last_report_date": "2024-10-01"}]` |
 
-| Property | Value |
-| :--- | :--- |
-| **Endpoint** | `POST /api/v1/data-grants/revoke/{professional_user_id}` |
-| **Method** | POST |
-| **Authentication** | Required (JWT for Primary User) |
-| **Purpose** | Primary User immediately revokes access. Revocation updates the `revoked_at` timestamp in the database, instantly denying RLS-controlled access. |
-| **Request Body** | N/A |
+### 4.2 API Contracts (Engine Service Proxy - CRITICAL ASYNCHRONOUS CORRECTION)
 
-#### 4.2 API Contracts (Engine Service Proxy - `engine/api/v1/professional-synthesis`)
+This endpoint **MUST** adhere to the **Asynchronous Processing Flow** constraint. The App Service must **NOT** wait for the Engine's synthesis.
 
 | Property | Value |
 | :--- | :--- |
 | **Endpoint** | `POST /api/v1/professional-synthesis` |
 | **Method** | POST |
 | **Authentication** | Required (JWT for **Professional User**). |
-| **Purpose** | Professional requests a holistic synthesis report for their linked client (Primary User). |
-| **Request Body** | `client_user_id`: UUID (The UUID of the client), `query_context`: string (The professional's question, e.g., "Analyze their sleep patterns for the last 90 days"). |
-| **Engine Action** | The Engine performs the full Cognitive Synthesis. Data retrieval is strictly filtered by the RLS policy, which checks the professional's `access_scope` in `data_access_grants` to ensure only consented data is used in the synthesis. |
-| **Success Response** | Returns the synthesized, consent-filtered holistic report (e.g., JSON or TEXT). |
+| **Purpose** | Professional requests a holistic synthesis report for their linked client. |
+| **App Service Action** | Sends request to Engine via internal message queue (e.g., Redis/RabbitMQ) and immediately returns a non-blocking confirmation. |
+| **Success Response (CRITICAL: 202 Accepted)**| `{"status": "Report processing initiated", "job_id": UUID}` |

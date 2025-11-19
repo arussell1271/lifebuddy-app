@@ -96,7 +96,18 @@
 | **Data Weighting Control** | The user must be able to specify granular retrieval criteria (quantity, recency, relevance) for each enabled data source. | The user can specify: "Retrieve the **Top 4** most semantically relevant Dream entries," or "Only include the **Most Recent** Tarot Reading," or "Use **Zero** data points from the Health Insights source." |
 | **Configuration Persistence** | All custom advisor interaction and weighting settings must be saved to the user's profile and automatically applied to all subsequent Holistic Queries until changed. | This ensures a consistent, personalized cognitive experience across all client sessions. |
 
-### 2.5 Professional Collaboration & Secure Sharing
+### 2.5 Professional Portal Access & Report Generation
+
+**Business Goal:** Provide Secondary Users (Professionals) a dedicated, secure interface to analyze client data within the scope of the Primary User's active consent.
+
+| Element | Functional Requirement / Business Rule | UX & Interaction Details |
+| :--- | :--- | :--- |
+| **Professional Authentication** | Upon successful login, the Professional must be directed immediately to a **Dedicated Portal** view. | This view replaces the standard Cultivate/Execute/Contribute user dashboard for this role. |
+| **Client List Visibility** | The portal must display a searchable, paginated list of clients who have granted **active, un-revoked consent** to the logged-in Professional. | No inactive or un-consented clients are visible to maintain security. |
+| **Report Request** | The Professional must be able to select a client and submit a **Synthesis Query** (e.g., "Analyze adherence trends for the last quarter"). | This triggers the asynchronous Engine process. |
+| **Asynchronous Response** | After submitting the query, the Professional will receive an immediate confirmation that the report request has been initiated, and they must be directed to a **Report History** or **Notification** section to retrieve the final report when completed. | The interface must never wait synchronously for the complex analysis to complete. |
+
+### 2.6 Professional Collaboration & Secure Sharing
 
 **Business Goal:** Empower the Primary User to selectively share their full historical (Conscious, Unconscious, and Actionable) data with vetted Secondary Users (doctors, dieticians, researchers) to facilitate advanced collaborative care.
 
