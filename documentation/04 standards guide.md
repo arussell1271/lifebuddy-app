@@ -91,6 +91,15 @@ This two-factor RLS check is the single, non-negotiable security layer for all c
 * **At Rest:** The entire PostgreSQL instance must be secured with a robust encryption strategy (e.g., TDE or file-system level encryption).
 * **Vector Store:** The `document_vectors` table is secured by the combination of network isolation, a high-privilege user (`cognitive_engine_full`), and mandatory **RLS**.
 
+### D. Data Retention Standard 📅
+
+The principle of **Minimal Necessary Data** mandates strict retention limits for high-volume, short-term data structures.
+
+| Component | Standard | Rationale |
+| :--- | :--- | :--- |
+| **User Cognitive State** (`user_cognitive_state` table) | **4-Day Rolling Window (Retention: 4 Days)** | Required data for short-term contextual synthesis (e.g., assessing mindset change). Retaining 4 days provides a safe buffer while minimizing storage. |
+| **Enforcement Method** | **Scheduled Database Maintenance** | Enforced by a nightly, privileged `cron` job that executes a stored procedure (e.g., `db_maintenance_purge_old_state()`). |
+
 ### 5. Documentation Scoping Standard
 
 All project documentation must strictly adhere to the Principle of Documentation Separation:

@@ -96,6 +96,27 @@ The App Service mediates all user interactions with the preference data.
 | **Request Schema (Body)** | Subset of preferences to update (e.g., `spiritual_mode`: "TAROT") |
 | **Success Response (200 OK)**| The full, updated preferences object. |
 
+#### C. Pre-Synthesis Question Retrieval
+
+| Property | Value | Rationale / RLS Policy |
+| :--- | :--- | :--- |
+| **Endpoint** | `GET /api/v1/cognitive/pre-analysis-questions/{advisor_type}` | Synchronous call to get mandatory questions. |
+| **Method** | `GET` | |
+| **Authentication** | Required (JWT). | |
+| **Purpose** | Retrieves the set of static questions required by the Engine for a specific advisor type before synthesis can be initiated. | This data is **NOT RLS-enabled** (it is global system config). |
+| **Response Body (Example)** | `[{"question_id": UUID, "text": str, "format": "TEXT"|"NUMBER"}]` | The client uses this list to render the UI form. |
+
+#### D. Daily Cognitive Check Status (NEW GATING ENDPOINT)
+
+| Property | Value | Rationale / RLS Policy |
+| :--- | :--- | :--- |
+| **Endpoint** | `GET /api/v1/cognitive/daily-check-status/{advisor_type}` | Primary gate for the client. |
+| **Method** | `GET` | |
+| **Authentication** | Required (JWT). | |
+| **Purpose** | Checks the `user_cognitive_state` table for the current user and current date. Determines if all mandatory questions for the day are complete. | RLS Policy: `user_isolation_cognitive_state` ensures the user only sees their own daily state. |
+| **Response Body (Status COMPLETE)** | `{"status": "COMPLETE", "unanswered_questions": []}` | Client unlocks the main chat input field. |
+| **Response Body (Status PENDING)** | `{"status": "PENDING", "unanswered_questions": [{"question_id": UUID, "text": str, "format": str}, ...]}` | Client uses the `unanswered_questions` array to render the required input forms. |
+
 ### 3.3 Client-Side Implementation: Preferences Screen
 
 | Component | Responsibility | Technical Notes |
@@ -121,7 +142,7 @@ The client application must implement a state check on successful authentication
 
 ... (Keep existing `POST /data-grants/grant` and `POST /data-grants/revoke/{professional_user_id}` as is) ...
 
-#### 4.1.A Client List Retrieval (NEW)
+#### 4.1.A Client List Retrieval
 
 | Property | Value |
 | :--- | :--- |
@@ -142,4 +163,5 @@ This endpoint **MUST** adhere to the **Asynchronous Processing Flow** constraint
 | **Authentication** | Required (JWT for **Professional User**). |
 | **Purpose** | Professional requests a holistic synthesis report for their linked client. |
 | **App Service Action** | Sends request to Engine via internal message queue (e.g., Redis/RabbitMQ) and immediately returns a non-blocking confirmation. |
+| **Request Payload (CRITICAL ADDITION)** | **MUST** include the `daily_check_answers` object for the client user being queried. |
 | **Success Response (CRITICAL: 202 Accepted)**| `{"status": "Report processing initiated", "job_id": UUID}` |

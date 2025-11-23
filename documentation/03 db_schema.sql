@@ -6,7 +6,7 @@
 
 -- CRITICAL INSTRUCTION: Any schema change that involves user-owned data MUST include RLS using get_current_user_id().
 
-# 03_DB_SCHEMA.sql: Current Database Schema (Version 1.1) - Cultivate → Execute → Contribute
+# 03_DB_SCHEMA.sql: Current Database Schema (Version 1.2 - Consolidated DDL) - Cultivate → Execute → Contribute
 
 -- =========================================================================
 -- 0. EXTENSIONS & RLS SETUP
@@ -14,6 +14,8 @@
 
 -- Ensure the vector extension is enabled (required for pgvector)
 CREATE EXTENSION IF NOT EXISTS vector;
+-- Ensure uuid-ossp is enabled (used by data_access_grants)
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp"; 
 
 -- Set a custom configuration setting that the application will use to hold the authenticated user's ID.
 -- The application must execute: SET app.current_user_id = 'the-user-uuid';
@@ -36,12 +38,14 @@ CREATE TABLE users (
     hashed_password BYTEA NOT NULL,
     username VARCHAR(100),
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    
+    -- Supports different roles for RLS and portal access (Consolidated from ALTER)
+    user_type VARCHAR(20) NOT NULL DEFAULT 'PRIMARY' 
+        CHECK (user_type IN ('PRIMARY', 'PROFESSIONAL', 'RESEARCHER')),
+        
     created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- The 'users' table is updated to support different roles for RLS and portal access.
-ALTER TABLE users ADD COLUMN user_type VARCHAR(20) NOT NULL DEFAULT 'PRIMARY' 
-    CHECK (user_type IN ('PRIMARY', 'PROFESSIONAL', 'RESEARCHER'));
 
 -- =========================================================================
 -- 2. ACTIONABLE ITEMS (The 'Goal/Task' definition - EXECUTE component)
@@ -64,10 +68,6 @@ CREATE TABLE actionable_items (
     created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
-
--- The 'user_preferences' table is updated to store the user-defined Synthesis Matrix.
--- This JSONB object controls data retrieval and weighting for the Cognitive Engine.
-ALTER TABLE user_preferences ADD COLUMN synthesis_matrix JSONB;
 
 -- ------------------------------
 -- RLS Policy on actionable_items
@@ -187,6 +187,9 @@ CREATE TABLE user_preferences (
     advisor_name_spiritual VARCHAR(100) DEFAULT 'The Cultivator',
     advisor_name_action VARCHAR(100) DEFAULT 'The Executor',
     advisor_name_health VARCHAR(100) DEFAULT 'The Contributor',
+    
+    -- User-defined Synthesis Matrix (Consolidated from ALTER)
+    synthesis_matrix JSONB,
 
     -- Spiritual Advisor Configuration (Used by the Cognitive Engine)
     spiritual_mode VARCHAR(50) NOT NULL CHECK (spiritual_mode IN ('TAROT', 'GOD', 'NEUTRAL')) DEFAULT 'NEUTRAL', 
@@ -201,8 +204,8 @@ CREATE TABLE user_preferences (
 -- Stores explicit, revokable consent for professionals (Secondary Users) to access a Primary User's data.
 CREATE TABLE data_access_grants (
     grant_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    primary_user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    professional_user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE RESTRICT,
+    primary_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- Corrected reference to users(id)
+    professional_user_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT, -- Corrected reference to users(id)
     
     -- Defines granular, user-scoped consent (e.g., {"health_metrics": true, "cultivate_data": false, "start_date": "YYYY-MM-DD"})
     access_scope JSONB NOT NULL, 
@@ -228,8 +231,8 @@ CREATE POLICY user_isolation_preferences ON user_preferences
     USING (user_id = get_current_user_id())
     WITH CHECK (user_id = get_current_user_id());
 
--- Index for performance on the primary access column
-CREATE INDEX idx_preferences_user ON user_preferences (user_id);
+-- Index for performance on the primary access column (moved to section 12)
+
 
 -- =========================================================================
 -- 8. COGNITIVE DEFINITIONS (System Configuration - Non-RLS Global Data)
@@ -278,7 +281,93 @@ CREATE TABLE cognitive_efficacy_metrics (
 -- for the Engine Service's internal analytics/reporting system.
 
 -- =========================================================================
--- 9. INDEXES FOR PERFORMANCE
+-- 9. PRE-SYNTHESIS QUESTIONS (Engine Configuration Data)
+-- =========================================================================
+
+CREATE TABLE pre_synthesis_questions (
+    question_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    
+    -- The advisor area this question belongs to: 'CULTIVATE', 'EXECUTE', 'CONTRIBUTE'
+    advisor_type VARCHAR(50) NOT NULL 
+        CHECK (advisor_type IN ('CULTIVATE', 'EXECUTE', 'CONTRIBUTE')),
+        
+    question_text TEXT NOT NULL,
+    
+    -- Expected answer format to guide the client (e.g., 'TEXT', 'NUMBER', 'DATE')
+    expected_format VARCHAR(50) NOT NULL, 
+    
+    -- Priority for ordering the questions in the client UI
+    display_order INTEGER DEFAULT 1,
+    
+    is_active BOOLEAN DEFAULT TRUE NOT NULL
+);
+
+-- NOTE: This table is NOT RLS-enabled. It contains global system data.
+
+-- =========================================================================
+-- 10. USER COGNITIVE STATE (Daily Check Gating Mechanism)
+-- =========================================================================
+
+-- Tracks the completion status of mandatory daily/contextual questions per user.
+-- CRITICAL RETENTION MANDATE: Data MUST be purged after a 4-day rolling window.
+
+CREATE TABLE user_cognitive_state (
+    user_id UUID NOT NULL REFERENCES users(id),
+    
+    -- Date of the status check (ensures a reset every day)
+    state_date DATE NOT NULL DEFAULT CURRENT_DATE, 
+    
+    -- ID of the mandatory question being tracked (from pre_synthesis_questions)
+    question_id UUID NOT NULL REFERENCES pre_synthesis_questions(question_id),
+    
+    -- The answer provided by the user (or extracted implicitly by the Engine)
+    user_answer TEXT,
+    
+    -- Status flag: 'PENDING', 'ANSWERED_EXPLICIT', 'ANSWERED_IMPLICIT'
+    status VARCHAR(50) NOT NULL DEFAULT 'PENDING' 
+        CHECK (status IN ('PENDING', 'ANSWERED_EXPLICIT', 'ANSWERED_IMPLICIT')),
+    
+    updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    PRIMARY KEY (user_id, state_date, question_id) 
+);
+
+-- ------------------------------
+-- RLS Policy on user_cognitive_state (MANDATORY)
+-- ------------------------------
+ALTER TABLE user_cognitive_state ENABLE ROW LEVEL SECURITY;
+CREATE POLICY user_isolation_cognitive_state ON user_cognitive_state
+    USING (user_id = get_current_user_id())
+    WITH CHECK (user_id = get_current_user_id());
+    
+CREATE INDEX idx_cognitive_state_user_date ON user_cognitive_state (user_id, state_date, status);
+
+-- =========================================================================
+-- 11. DATABASE MAINTENANCE REQUIREMENT 🧹
+-- =========================================================================
+
+-- CRITICAL MAINTENANCE: A nightly cron job MUST execute a stored procedure 
+-- to enforce the 4-Day Data Retention Standard on the user_cognitive_state table.
+
+/*
+-- The required Stored Procedure (logic is documented in 04 standards guide.md)
+-- This procedure will need to be executed by a user with sufficient privileges (e.g., 'cognitive_engine_full')
+CREATE OR REPLACE PROCEDURE db_maintenance_purge_old_state()
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- Deletes all state records older than the 4-day retention window defined in standards.
+    DELETE FROM user_cognitive_state
+    WHERE state_date < (CURRENT_DATE - INTERVAL '4 days');
+END;
+$$;
+*/
+
+-- DEVOPS REQUIREMENT: Ensure a privileged cron task is configured to execute: 
+-- CALL db_maintenance_purge_old_state(); once daily.
+
+-- =========================================================================
+-- 12. INDEXES FOR PERFORMANCE
 -- =========================================================================
 
 CREATE INDEX idx_actionable_user_type ON actionable_items (user_id, item_type);
@@ -286,4 +375,3 @@ CREATE INDEX idx_adherence_user_date ON adherence_log (user_id, log_date);
 CREATE INDEX idx_documents_user_type ON documents (user_id, document_type);
 CREATE INDEX idx_health_metrics_user_date ON health_metrics (user_id, recorded_at);
 CREATE INDEX idx_preferences_user ON user_preferences (user_id);
-```eof

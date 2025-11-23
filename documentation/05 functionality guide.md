@@ -126,3 +126,15 @@
 | **Hypothesis Tracking (H2)** | The system must run scheduled, background processes to calculate the **prediction accuracy** of Cultivate data (Dream/Spiritual themes) in forecasting Execute failures (Actionable Item non-adherence) within a defined future window (e.g., 3-5 days). | This process provides quantitative evidence of the system's ability to identify unconscious behavioral blocks. |
 | **Holistic Outcome Metering (H3)** | The system must calculate and log the overall user adherence rate to **Holistic Actionable Items**, correlating it with positive changes in clinical/health markers (Contribute data). | This metric provides the longitudinal evidence required to demonstrate the system's effectiveness for sustained change. |
 | **Internal Research Data** | The aggregate system effectiveness metrics must be stored in a dedicated, **anonymized** research data store separate from individual user content. | This data store is used for internal analysis, not for user-facing features, ensuring separation of research and user data. |
+
+### 3.1 Cognitive Advisor Chat Flow (Updated with Daily State Management) 🧠
+
+**User Goal:** Engage with the system's personalized advisors for guidance and insight.
+
+| Element | Functional Requirement / Business Rule | UX & Interaction Details |
+| :--- | :--- | :--- |
+| **Daily Cognitive Check (CRITICAL)** | On the **first interaction of the day** with an advisor, the system must perform a check against the `user_cognitive_state` table to ensure all mandatory **Pre-Analysis Questions** are answered for the current day. This is a **hard block** to the main chat function. | The main chat input field is disabled and replaced by a prompt to complete the daily check, presenting the unanswered questions sequentially using the `expected_format`. |
+| **Dynamic Question Set** | Questions are loaded based on the current context and the Advisor Type from the `pre_synthesis_questions` table. | Examples: "What time did you go to bed last night?" (EXECUTE), or "What was the dominant feeling in your dream?" (CULTIVATE). |
+| **Question Persistence** | Questions are tracked **per user, per day**. Once answered (status is `ANSWERED_EXPLICIT` or `ANSWERED_IMPLICIT`), the check is complete for that calendar day. | If a user answers a question via the check form, the status is set to `ANSWERED_EXPLICIT`. |
+| **Implicit Completion (Engine Responsibility)** | The **Cognitive Engine** must analyze the new user input against the `PENDING` questions in `user_cognitive_state`. If an answer is sufficiently identified in the text (even if the user is asking for clarification), the Engine must update the state status to `ANSWERED_IMPLICIT`. | This allows the user's flow to proceed naturally if they provide the necessary data in conversation. |
+| **Response Synthesis** | The full synthesis is only initiated when the daily check status is confirmed as **COMPLETE**. The final synthesis payload must include all collected daily answers for context. | The App Service uses the `/daily-check-status` API to determine if it can proceed to initiate the job. |
