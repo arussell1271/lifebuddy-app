@@ -7,9 +7,6 @@ uvicorn[standard]
 gunicorn
 
 # Database/Vector Store Connectors
-psycopg2-binary
-sqlalchemy
-numpy
 pgvector-python
 # You will likely need additional libraries based on your AI toolkit, e.g.:
 # For using pgvector easily: pgvector-python

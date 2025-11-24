@@ -1,0 +1,28 @@
+# engine/requirements.txt
+
+# Web Framework (Engine is also a FastAPI service for internal API polling)
+fastapi
+uvicorn[standard]
+gunicorn
+
+# ----------------------------------------------------
+# 🛡️ CORE-NETWORK PRIVILEGED LIBRARIES
+# ----------------------------------------------------
+
+# Database Connectors (Required for dev_db/prod_db access via cognitive_engine_full user)
+psycopg2-binary
+sqlalchemy
+pgvector-python
+
+# Data/Vector Operations (Required for vector math, synthesis, and LLM processing)
+numpty
+scipy
+pandas
+
+# Asynchronous Tasking (Required for consuming messages from the message-broker)
+redis
+
+# LLM Interaction / Embedding Models
+# Example: If you are using a Python client for Ollama or local Sentence Transformers
+# ollama
+# sentence-transformers

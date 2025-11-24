@@ -343,7 +343,65 @@ CREATE POLICY user_isolation_cognitive_state ON user_cognitive_state
 CREATE INDEX idx_cognitive_state_user_date ON user_cognitive_state (user_id, state_date, status);
 
 -- =========================================================================
--- 11. DATABASE MAINTENANCE REQUIREMENT 🧹
+-- 11. CRITICAL ROW-LEVEL SECURITY (RLS) POLICIES
+--    MANDATORY ENFORCEMENT using get_current_user_id() for multi-tenancy.
+-- =========================================================================
+
+-- Enable RLS on all user-owned tables.
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_cognitive_state ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pre_synthesis_questions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE actionable_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE adherence_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE health_metrics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+
+-- CRITICAL POLICIES: Enforce user isolation.
+
+-- Users Table: Primary users can only see their own record (uses 'id').
+CREATE POLICY rls_users_isolation ON users
+    FOR ALL
+    USING (id = get_current_user_id())
+    WITH CHECK (id = get_current_user_id());
+
+-- User Cognitive State: Enforce RLS for user's daily state data (uses 'user_id').
+CREATE POLICY user_isolation_cognitive_state ON user_cognitive_state
+    FOR ALL
+    USING (user_id = get_current_user_id())
+    WITH CHECK (user_id = get_current_user_id());
+
+-- Pre-Synthesis Questions: Enforce RLS for user's specific question history.
+CREATE POLICY user_isolation_pre_synthesis ON pre_synthesis_questions
+    FOR ALL
+    USING (user_id = get_current_user_id())
+    WITH CHECK (user_id = get_current_user_id());
+
+-- Actionable Items: Enforce RLS for user's personalized tasks.
+CREATE POLICY rls_actionable_items_isolation ON actionable_items
+    FOR ALL
+    USING (user_id = get_current_user_id())
+    WITH CHECK (user_id = get_current_user_id());
+
+-- Adherence Log: Enforce RLS for user's adherence tracking.
+CREATE POLICY rls_adherence_log_isolation ON adherence_log
+    FOR ALL
+    USING (user_id = get_current_user_id())
+    WITH CHECK (user_id = get_current_user_id());
+
+-- Health Metrics: Enforce RLS for user's biometric data.
+CREATE POLICY user_isolation_health_metrics ON health_metrics
+    FOR ALL
+    USING (user_id = get_current_user_id())
+    WITH CHECK (user_id = get_current_user_id());
+
+-- Documents: Enforce RLS for user's uploaded/generated documents.
+CREATE POLICY user_isolation_documents ON documents
+    FOR ALL
+    USING (user_id = get_current_user_id())
+    WITH CHECK (user_id = get_current_user_id());
+
+-- =========================================================================
+-- 12. DATABASE MAINTENANCE REQUIREMENT 🧹
 -- =========================================================================
 
 -- CRITICAL MAINTENANCE: A nightly cron job MUST execute a stored procedure 
