@@ -1,4 +1,4 @@
-# app/requirements.txt
+# app/app_requirements.txt
 
 # Web Framework (FastAPI is fast and modern)
 fastapi
@@ -7,7 +7,11 @@ uvicorn[standard]
 gunicorn
 
 # Database/Vector Store Connectors
-pgvector-python
+# Any DB interaction for the App Service MUST go through the Engine API or message-broker.
+# Other App-specific dependencies...
+redis 
+# Required for App-to-Engine asynchronous task queuing.
+
 # You will likely need additional libraries based on your AI toolkit, e.g.:
 # For using pgvector easily: pgvector-python
 # For Local LLMs: ollama (or an embedding model library like sentence-transformers)

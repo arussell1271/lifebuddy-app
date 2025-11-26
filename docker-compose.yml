@@ -80,6 +80,7 @@ services:
       - "8000:8000"
     depends_on:
       - message-broker # CRITICAL: Needs MQ for asynchronous tasking
+      - cognitive-engine # Can poll Engine for job status
     networks:
       - frontend-network # Public access
       - core-network # Needs access to MQ
@@ -117,6 +118,7 @@ services:
       - "80:8000"
     depends_on:
       - message-broker
+      - prod_engine
     networks:
       - frontend-network
       - core-network

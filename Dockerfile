@@ -13,12 +13,12 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /usr/src/app
 
 # CRITICAL: Copy and install App dependencies (must be stripped of DB/AI libs by the user)
-COPY ./app/requirements.txt ./
+COPY ./app/app_requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # CRITICAL: Copy and install Engine dependencies (must contain DB/AI libs like psycopg2-binary, pgvector-python)
 # ASSUMPTION: You have created the file: ./engine/requirements.txt
-COPY ./engine/requirements.txt ./
+COPY ./engine/engine_requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the core application and engine code

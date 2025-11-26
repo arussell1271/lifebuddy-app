@@ -104,9 +104,9 @@ The App Service mediates all user interactions with the preference data.
 | **Method** | `GET` | |
 | **Authentication** | Required (JWT). | |
 | **Purpose** | Retrieves the set of static questions required by the Engine for a specific advisor type before synthesis can be initiated. | This data is **NOT RLS-enabled** (it is global system config). |
-| **Response Body (Example)** | `[{"question_id": UUID, "text": str, "format": "TEXT"|"NUMBER"}]` | The client uses this list to render the UI form. |
+| **Response Body (Next Question)** | `{"status": "NEXT_QUESTION", "question": {"id": UUID, "text": "What was the dominant feeling...?", "format": "TEXT"\|"NUMBER"}}` | The client uses this list to render the UI form. |
 
-#### D. Daily Cognitive Check Status (NEW GATING ENDPOINT)
+#### D. Daily Cognitive Check Status (GATING ENDPOINT)
 
 | Property | Value | Rationale / RLS Policy |
 | :--- | :--- | :--- |
@@ -124,6 +124,69 @@ The App Service mediates all user interactions with the preference data.
 | **Preferences Store (Pinia)**| Manages the state of the preferences object. | Fetch data on mount of the settings route. Use optimistic updates upon patch requests. |
 | **UI Components** | Input fields for names, radio groups/dropdowns for modes and tones. | Implement using **Tailwind CSS** for responsive design (mobile-first primary). Ensure validation matches database constraints (e.g., for Spiritual Mode choices). |
 | **HTTP Requests** | `GET` on load, `PATCH` on save/change. | Must use the authenticated HTTP Interceptor to ensure JWT is passed. |
+
+### 3.4 API Contracts (App Service - Daily Check Flow)
+
+These contracts govern the execution of the Daily Check (CULTIVATE/EXECUTE Questions) which is a functional prerequisite for all other interactions.
+
+#### A. Get Daily Check Status
+
+| Property | Value |
+| :--- | :--- |
+| **Endpoint** | `GET /api/v1/daily-check/status` |
+| **Method** | GET |
+| **Authentication** | Required (JWT for **Primary User**). |
+| **Purpose** | Retrieves the current overall state of the daily check (e.g., whether the flow is complete or in progress). |
+| **Response Body (Example)** | `{"status": "IN_PROGRESS", "total_questions": 5, "questions_remaining": 2}` |
+
+#### B. Get Next Daily Check Question/Data (NEW)
+
+| Property | Value |
+| :--- | :--- |
+| **Endpoint** | `GET /api/v1/daily-check/question` |
+| **Method** | GET |
+| **Authentication** | Required (JWT for **Primary User**). |
+| **Purpose** | Retrieves the **single, next required question** for sequential rendering, based on the `questions_remaining` count. |
+| **Response Body (Next Question)** | `{"status": "NEXT_QUESTION", "question": {"id": UUID, "text": "What was the dominant feeling...?", "format": "TEXT"}}` |
+| **Response Body (Complete)** | `{"status": "COMPLETE", "message": "Daily check complete for today."}` |
+
+#### C. Submit Daily Check Answer
+
+| Property | Value |
+| :--- | :--- |
+| **Endpoint** | `POST /api/v1/daily-check/answer` |
+| **Method** | POST |
+| **Authentication** | Required (JWT for **Primary User**). |
+| **Purpose** | Submits a user's answer for the identified question. |
+| **Request Body** | `{"question_id": UUID, "answer_text": "The dominant feeling in my dream was peace."}` |
+| **Response Body (Example)** | `{"success": true, "message": "Answer saved. Next question data is available via GET /question."}` |
+
+### 3.5 API Contracts (App Service - Actionable Items & Adherence)
+
+These contracts manage the core "Execute" phase deliverables (Actionable Items) and the logging of user progress.
+
+#### A. Retrieve Actionable Items
+
+| Property | Value |
+| :--- | :--- |
+| **Endpoint** | `GET /api/v1/action-items` |
+| **Method** | GET |
+| **Authentication** | Required (JWT for **Primary User**). |
+| **Purpose** | Retrieves all Actionable Items for the current date or specified date range. |
+| **Query Params** | `?start_date=YYYY-MM-DD` (Optional) |
+| **Response Body (Example)** | `[{"item_id": UUID, "title": "Be present while drinking your coffee.", "item_type": "HOLISTIC", "status": "PENDING"}]` |
+
+#### B. Log Adherence
+
+| Property | Value |
+| :--- | :--- |
+| **Endpoint** | `POST /api/v1/action-items/{item_id}/adherence` |
+| **Method** | POST |
+| **Authentication** | Required (JWT for **Primary User**). |
+| **Purpose** | Logs the user's success or failure against a specific Actionable Item. |
+| **Path Params** | `item_id`: The UUID of the item being logged. |
+| **Request Body** | `{"success": true, "notes": "Successfully completed item before 10AM."}` |
+| **Response Body (Example)** | `{"success": true, "message": "Adherence logged. Item status updated to COMPLETED."}` |
 
 ## IV. Feature: Professional Collaboration & Secure Sharing
 

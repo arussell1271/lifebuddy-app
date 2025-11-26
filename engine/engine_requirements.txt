@@ -1,4 +1,4 @@
-# engine/requirements.txt
+# engine/engine_requirements.txt
 
 # Web Framework (Engine is also a FastAPI service for internal API polling)
 fastapi
