@@ -17,8 +17,25 @@ CREATE EXTENSION IF NOT EXISTS vector;
 -- Ensure uuid-ossp is enabled (used by data_access_grants)
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp"; 
 
+-- =========================================================================
+-- 1. ENGINE SERVICE ROLES SETUP (MANDATORY RLS ENFORCEMENT)
+-- =========================================================================
+
+-- Role 1: 'cognitive_engine_full'
+-- Purpose: For Administrative/Maintenance tasks ONLY (e.g., nightly purge, schema updates). 
+-- This role MUST NOT be used for serving live user requests. It BYPASSES RLS.
+-- Example Creation (requires manual step in deployment):
+-- CREATE ROLE cognitive_engine_full WITH LOGIN PASSWORD '<<strong_password_1>>';
+
+-- Role 2: 'cognitive_engine_rls'
+-- Purpose: For ALL live user data access via the RLS Proxy API.
+-- This role MUST be used by the Engine when serving user requests and IS strictly constrained by RLS.
+-- Example Creation (requires manual step in deployment):
+-- CREATE ROLE cognitive_engine_rls WITH LOGIN PASSWORD '<<strong_password_2>>';
+
+
 -- Set a custom configuration setting that the application will use to hold the authenticated user's ID.
--- The application must execute: SET app.current_user_id = 'the-user-uuid';
+-- The Engine RLS Proxy MUST execute: SET app.current_user_id = 'the-user-uuid';
 ALTER DATABASE postgres SET app.current_user_id TO '';
 
 -- Define a reusable function to get the current user ID from the application context.
@@ -29,23 +46,6 @@ $$ LANGUAGE SQL STABLE;
 
 
 -- =========================================================================
--- 1. USER AUTHENTICATION & PROFILE
--- =========================================================================
-
-CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email VARCHAR(255) UNIQUE NOT NULL,
-    hashed_password BYTEA NOT NULL,
-    username VARCHAR(100),
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    
-    -- Supports different roles for RLS and portal access (Consolidated from ALTER)
-    user_type VARCHAR(20) NOT NULL DEFAULT 'PRIMARY' 
-        CHECK (user_type IN ('PRIMARY', 'PROFESSIONAL', 'RESEARCHER')),
-        
-    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
 
 -- =========================================================================
 -- 2. ACTIONABLE ITEMS (The 'Goal/Task' definition - EXECUTE component)

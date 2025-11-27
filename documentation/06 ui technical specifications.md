@@ -228,3 +228,16 @@ This endpoint **MUST** adhere to the **Asynchronous Processing Flow** constraint
 | **App Service Action** | Sends request to Engine via internal message queue (e.g., Redis/RabbitMQ) and immediately returns a non-blocking confirmation. |
 | **Request Payload (CRITICAL ADDITION)** | **MUST** include the `daily_check_answers` object for the client user being queried. |
 | **Success Response (CRITICAL: 202 Accepted)**| `{"status": "Report processing initiated", "job_id": UUID}` |
+
+### 4.3 API Contracts (Engine Service RLS Proxy - CRITICAL SYNCHRONOUS FLOW)
+
+The App Service MUST use this endpoint for all operations that require fetching or modifying user-specific data. This is the **only acceptable synchronous data access** call to the Engine, as it is a low-latency proxy to enable RLS.
+
+| Property | Value |
+| :--- | :--- |
+| **Endpoint Pattern** | `POST /api/v1/data-proxy/{user_id}/{engine_route}` |
+| **Method** | POST |
+| **Authentication** | Required (Internal JWT or shared secret for App-to-Engine communication). |
+| **App Service Action** | 1. Decode the authenticated `user_id` from the user's JWT. 2. Pass this `user_id` as the path parameter. 3. Pass the original user request body/query parameters as the payload to the Engine. |
+| **Purpose** | Proxies the request to the Engine, allowing the Engine to safely set the RLS context (`SET app.current_user_id = '{user_id}';`) before executing the requested business logic (`engine_route`). |
+| **Example App Call** | App calls Engine: `POST cognitive-engine:8001/api/v1/data-proxy/123e4567-e89b.../health-metrics` |

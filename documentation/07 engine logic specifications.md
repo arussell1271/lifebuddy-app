@@ -57,3 +57,17 @@ The Engine must convert the **Cultivate Synthesis** into a concrete **Holistic A
 2. **LLM Task:** The Engine provides the LLM (`ollama`) with the **new health data** and the **current item set**.
 3. **Prompt Instruction (Simplified):** "Generate one concise, behavioral Actionable Item to address the worst health metric (e.g., 'Go to bed 30 minutes earlier'). The item type MUST be 'MANDATED'."
 4. **Output:** The generated Item is saved to the `actionable_items` table with `item_type='MANDATED'` and `status='PENDING'`.
+
+## IV. Engine Core Service Mandates 🛡️
+
+### A. RLS Context Initialization (CRITICAL SECURITY STEP)
+
+The Engine Service MUST ensure that for every synchronous API call received via the `/api/v1/data-proxy/{user_id}/{engine_route}` endpoint, the following steps are performed **sequentially and transactionally** before any database business logic is executed:
+
+1. **Validate User ID:** Verify the integrity and format of the `user_id` received from the App Service.
+2. **Establish RLS Connection:** Establish a new, dedicated database connection using **Role 2 (`cognitive_engine_rls`)**.
+3. **Execute Session Setup:** Execute the SQL command to enable RLS filtering for the current session: `SET app.current_user_id = '<<user_id from API>>';`
+4. **Execute Business Logic:** Proceed to execute the core Engine logic required by the `engine_route` (e.g., retrieving documents, logging adherence).
+5. **Connection Management:** Close the connection immediately upon completion of the request.
+
+This process ensures all data access is strictly limited by the database's RLS policy to the user specified in the session context, maintaining the **PoLP** standard.
