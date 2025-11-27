@@ -401,53 +401,32 @@ CREATE POLICY user_isolation_documents ON documents
     WITH CHECK (user_id = get_current_user_id());
 
 -- =========================================================================
--- 12. DATABASE MAINTENANCE REQUIREMENT 🧹
+-- 12. DATABASE MAINTENANCE REQUIREMENT 🧹 (ACTIVE DDL)
 -- =========================================================================
 
 -- CRITICAL MAINTENANCE: A nightly cron job MUST execute a stored procedure 
 -- to enforce the 4-Day Data Retention Standard on the user_cognitive_state table.
 
-/*
 -- The required Stored Procedure (logic is documented in 04 standards guide.md)
--- This procedure will need to be executed by a user with sufficient privileges (e.g., 'cognitive_engine_full')
+-- This procedure will need to be executed by a user with sufficient privileges 
+-- (e.g., 'cognitive_engine_full')
+
 CREATE OR REPLACE PROCEDURE db_maintenance_purge_old_state()
 LANGUAGE plpgsql
 AS $$
 BEGIN
     -- Deletes all state records older than the 4-day retention window defined in standards.
+    -- NOTE: Assuming 'state_date' is the correct column name based on the original comment.
     DELETE FROM user_cognitive_state
     WHERE state_date < (CURRENT_DATE - INTERVAL '4 days');
+    
+    -- Optional: Add a notice for logging when the procedure is called
+    RAISE NOTICE 'Maintenance: Purged user_cognitive_state entries older than 4 days.';
 END;
 $$;
-*/
 
 -- DEVOPS REQUIREMENT: Ensure a privileged cron task is configured to execute: 
 -- CALL db_maintenance_purge_old_state(); once daily.
-
--- =========================================================================
--- 12. DATABASE MAINTENANCE REQUIREMENT 🧹
--- =========================================================================
-
--- CRITICAL MAINTENANCE: A nightly cron job MUST execute a stored procedure 
--- to enforce the 4-Day Data Retention Standard on the user_cognitive_state table.
-
-/*
--- The required Stored Procedure (logic is documented in 04 standards guide.md)
--- This procedure will need to be executed by a user with sufficient privileges (e.g., 'cognitive_engine_full')
-CREATE OR REPLACE PROCEDURE db_maintenance_purge_old_state()
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    -- Deletes all state records older than the 4-day retention window defined in standards.
-    DELETE FROM user_cognitive_state
-    WHERE state_date < (CURRENT_DATE - INTERVAL '4 days');
-END;
-$$;
-*/
-
--- DEVOPS REQUIREMENT: Ensure a privileged cron task is configured to execute: 
--- CALL db_maintenance_purge_old_state(); once daily.
-
 
 -- =========================================================================
 -- 13. MANDATORY SEED DATA (DML) - Application Fails Without This 🚨
