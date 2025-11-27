@@ -25,26 +25,32 @@
 
 ### 2.1 API Contracts (App Service - `app/api/v1/auth`)
 
-#### A. User Login: Token Acquisition
+#### A. User Login: Token Acquisition (CRITICAL: Proxied to Engine)
 
 | Property | Value |
 | :--- | :--- |
-| **Endpoint** | `POST /api/v1/auth/token` |
-| **Description** | Authenticates the user and generates a JWT. |
-| **Request Schema (Body)** | `username`: string (or email); `password`: string |
-| **Success Response (200 OK)** | `access_token`: string (JWT); `token_type`: "bearer" |
-| **Security Action (CRITICAL)** | App middleware **MUST** extract the `user_id` from the JWT payload and use it to execute: `SET app.current_user_id = '<user_uuid>';` for all subsequent database interactions. |
+| **Endpoint** | `POST /api/v1/auth/login` |
+| **Method** | POST |
+| **Authentication** | None (Public) |
+| **Request Payload** | `{"username": "string", "password": "string"}` |
+| **App Service Action** | **Synchronously forwards** the request (username/password) to the **Engine Service**'s internal Auth endpoint (`cognitive-engine:8001/auth/login`). |
+| **Success Response** | `{"access_token": "JWT_STRING", "token_type": "bearer"}` |
+| **Failure Response** | `401 Unauthorized` |
 
-#### B. User Registration: Account Creation
+#### B. User Registration: New User Creation (CRITICAL: Proxied to Engine)
 
 | Property | Value |
 | :--- | :--- |
-| **Endpoint** | `POST /api/v1/auth/register` (Adheres to `kebab-case` standard) |
-| **Description** | Creates a new user record (UUID, Email, Username, Hashed Password) in the `users` table and immediately returns an authentication token. |
-| **Request Schema (Body)** | `email`: string; `username`: string; `password`: string |
-| **Success Response (201 Created)**| `access_token`: string (JWT); `token_type`: "bearer" |
-| **Failure Response (409 Conflict)**| If the provided email or username already exists in the `users` table. |
-| **Security Action (CRITICAL)** | Upon token generation, the App middleware **MUST** extract the `user_id` from the JWT payload and use it to execute: `SET app.current_user_id = '<user_uuid>';` for all subsequent database interactions. |
+| **Endpoint** | `POST /api/v1/auth/register` |
+| **Method** | POST |
+| **Authentication** | None (Public) |
+| **Request Payload** | `{"username": "string", "password": "string", "email": "string"}` |
+| **App Service Action** | **Synchronously forwards** the request (username/password/email) to the **Engine Service**'s internal Auth endpoint (`cognitive-engine:8001/auth/register`). The Engine handles user hashing, DB write, and initial token generation. |
+| **Success Response** | `201 Created` with a `Location` header or the full login response (as per Login: A). |
+| **Failure Response** | `409 Conflict` (Username/Email already exists). |
+
+---
+**CRITICAL ARCHITECTURAL NOTE:** To uphold the **Principle of Least Privilege (PoLP)** and **Network Isolation**, the App Service **MUST NOT** import or use any database client library (e.g., `psycopg2`) or hold database credentials. All database operations, including Auth and Registration, are delegated to the **Cognitive Engine** (The Brain).
 
 #### C. Request Password Reset (App-to-Engine Asynchronous Delegation)
 

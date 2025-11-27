@@ -425,7 +425,67 @@ $$;
 -- CALL db_maintenance_purge_old_state(); once daily.
 
 -- =========================================================================
--- 12. INDEXES FOR PERFORMANCE
+-- 12. DATABASE MAINTENANCE REQUIREMENT 🧹
+-- =========================================================================
+
+-- CRITICAL MAINTENANCE: A nightly cron job MUST execute a stored procedure 
+-- to enforce the 4-Day Data Retention Standard on the user_cognitive_state table.
+
+/*
+-- The required Stored Procedure (logic is documented in 04 standards guide.md)
+-- This procedure will need to be executed by a user with sufficient privileges (e.g., 'cognitive_engine_full')
+CREATE OR REPLACE PROCEDURE db_maintenance_purge_old_state()
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- Deletes all state records older than the 4-day retention window defined in standards.
+    DELETE FROM user_cognitive_state
+    WHERE state_date < (CURRENT_DATE - INTERVAL '4 days');
+END;
+$$;
+*/
+
+-- DEVOPS REQUIREMENT: Ensure a privileged cron task is configured to execute: 
+-- CALL db_maintenance_purge_old_state(); once daily.
+
+
+-- =========================================================================
+-- 13. MANDATORY SEED DATA (DML) - Application Fails Without This 🚨
+-- =========================================================================
+
+-- Purpose: Contains all mandatory Data Manipulation Language (DML) statements to populate
+-- application-critical tables that define business logic.
+
+-- 13.1 SEED DATA: cognitive_definitions (LLM Prompt Templates/Initial Prompts)
+
+-- Defines the core prompt used for the CULTIVATE Synthesis phase.
+INSERT INTO cognitive_definitions (definition_key, definition_value, definition_type) VALUES
+('CULTIVATE_SYNTHESIS_PROMPT', 
+'You are an analytical, non-judgmental health coach. Your task is to review the provided user journal entries, dream logs, and actionable item adherence history. Identify the single most dominant "Limiting Subconscious Misalignment" theme. Your output MUST be a JSON object: {"theme": "THEME_NAME", "summary": "CONCISE_EXPLANATION"}.',
+'LLM_PROMPT')
+ON CONFLICT (definition_key) DO NOTHING;
+
+-- Defines the prompt used for the EXECUTE Action Item generation phase.
+INSERT INTO cognitive_definitions (definition_key, definition_value, definition_type) VALUES
+('EXECUTE_ITEM_GENERATION_PROMPT', 
+'Based on the identified Limiting Subconscious Misalignment (THEME: {theme}), generate a single "Holistic Actionable Item" (identity-focused, not task-focused) to address it. Your output MUST be a JSON object: {"title": "ITEM_TITLE", "description": "ITEM_DESCRIPTION"}.',
+'LLM_PROMPT')
+ON CONFLICT (definition_key) DO NOTHING;
+
+
+-- 13.2 SEED DATA: pre_synthesis_questions (Mandatory Daily Check)
+
+-- Essential questions to gather CULTIVATE/EXECUTE data before full Synthesis.
+INSERT INTO pre_synthesis_questions (question_text, question_type, expected_format, order_index) VALUES
+('What was the dominant emotion in your most recent dream?', 'CULTIVATE', 'single-word emotion', 1)
+ON CONFLICT (question_text) DO NOTHING,
+('What is the single most important action item you failed to adhere to yesterday?', 'EXECUTE', 'short description or item reference', 2)
+ON CONFLICT (question_text) DO NOTHING,
+('On a scale of 1 to 10 (10 being fully aligned), how aligned do you feel with your future self today?', 'CULTIVATE', 'integer 1-10', 3)
+ON CONFLICT (question_text) DO NOTHING;
+
+-- =========================================================================
+-- 14. INDEXES FOR PERFORMANCE
 -- =========================================================================
 
 CREATE INDEX idx_actionable_user_type ON actionable_items (user_id, item_type);

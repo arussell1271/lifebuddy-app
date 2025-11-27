@@ -55,3 +55,36 @@ All development must adhere to the following concrete, network-isolated connecti
 | :--- | :--- |
 | **App Service** | `gunicorn app.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000` |
 | **Engine Service** | `gunicorn engine.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8001` |
+
+## V. Mandatory Environment Variable Configuration (CRITICAL for Deployment) 🔒
+
+This manifest defines the minimum required environment variables that **MUST** be present in the `.env.dev` and `.env.prod` files referenced by `docker-compose.yml`. The system will fail to start without these variables.
+
+### A. General Application Secrets
+
+| Variable | Description | Security Note / Example Source |
+| :--- | :--- | :--- |
+| **JWT_SECRET_KEY** | **CRITICAL:** The secret key used to sign all JSON Web Tokens (JWTs). | Must be a long, random string (e.g., generated via `openssl rand -hex 32`). |
+| **JWT_ALGORITHM** | The signing algorithm for JWTs. | `HS256` |
+| **APP_SECRET_KEY** | A shared secret/API key for internal App-to-Engine communication. | Used for internal service-to-service validation. |
+
+### B. Database Connection Variables
+
+These variables define the credentials for the roles created in `03 db_schema.sql`.
+
+| Variable | Target Role | Description |
+| :--- | :--- | :--- |
+| **POSTGRES_DB** | N/A | The name of the database instance. |
+| **POSTGRES_USER_FULL_PASS** | `cognitive_engine_full` | Password for the **Bypass RLS** role. **CRITICAL SECRET.** |
+| **POSTGRES_USER_RLS_PASS** | `cognitive_engine_rls` | Password for the **Enforce RLS** role. **CRITICAL SECRET.** |
+
+### C. Service Connection Variables
+
+These use the internal service names defined in **Section I** of this document.
+
+| Variable | Service Target | Description |
+| :--- | :--- | :--- |
+| **REDIS_HOST** | `message-broker` | The internal DNS name for the Redis service. |
+| **REDIS_PORT** | `6379` | The port for the Redis service. |
+| **OLLAMA_HOST** | `ollama` | The internal DNS name for the Ollama LLM service. |
+| **OLLAMA_MODEL** | `ollama` | The specific language model to load (e.g., `llama3:8b`). |

@@ -71,3 +71,17 @@ The Engine Service MUST ensure that for every synchronous API call received via 
 5. **Connection Management:** Close the connection immediately upon completion of the request.
 
 This process ensures all data access is strictly limited by the database's RLS policy to the user specified in the session context, maintaining the **PoLP** standard.
+
+## V. Asynchronous Job Polling Contract (CRITICAL) ⏱️
+
+For all asynchronous jobs (e.g., Synthesis, Report Generation) initiated by the App Service through the `message-broker`, the client/App must poll this endpoint for status updates and results.
+
+| Property | Value |
+| :--- | :--- |
+| **Endpoint Pattern** | `GET /api/v1/jobs/{job_id}` |
+| **Method** | GET |
+| **Authentication** | Required (Internal JWT/Shared Secret for App-to-Engine communication). |
+| **Engine Service Action** | 1. Query Redis (via `message-broker`) using the `job_id`. 2. Return the current job status and the resulting data/location if complete. |
+| **Success Response (Pending)** | `200 OK` / `{"status": "PROCESSING", "progress": 55, "message": "Analyzing dream documents..."}` |
+| **Success Response (Complete)** | `200 OK` / `{"status": "COMPLETE", "result_uri": "/api/v1/synthesis-report/{job_id}", "message": "Report is ready."}` |
+| **Failure Response** | `500 Internal Error` / `{"status": "FAILED", "error": "LLM returned un-parseable output."}` |
