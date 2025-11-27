@@ -91,7 +91,14 @@ This two-factor RLS check is the single, non-negotiable security layer for all c
 * **At Rest:** The entire PostgreSQL instance must be secured with a robust encryption strategy (e.g., TDE or file-system level encryption).
 * **Vector Store:** The `document_vectors` table is secured by the combination of network isolation, a high-privilege user (`cognitive_engine_full`), and mandatory **RLS**.
 
-### D. Data Retention Standard 📅
+#### D. JSON Serialization Standard (Mandatory for `data_json` fields)
+
+Any column named `*_json` (e.g., `actionable_items.data_json`, `data_access_grants.data_json`) **MUST** store a valid, stringified JSON object.
+
+* **Rule:** The data payload must be treated as **opaque** by the App Service. It is the responsibility of the **Engine Service** to validate, serialize, and deserialize the JSON payload to ensure consistency.
+* **Rationale:** This prevents silent data corruption (e.g., storing a Python list as a string without proper encoding) and maintains data integrity for the proprietary Engine logic.
+
+### E. Data Retention Standard 📅
 
 The principle of **Minimal Necessary Data** mandates strict retention limits for high-volume, short-term data structures.
 

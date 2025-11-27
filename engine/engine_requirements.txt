@@ -1,17 +1,11 @@
-# engine/engine_requirements.txt
-# Dependencies for the Cognitive Engine Service (Engine/Brain).
-
-# Database and Vector Search
-psycopg2-binary==2.9.9       # PostgreSQL driver
-pgvector-python==0.1.2      # Vector operations wrapper
-
-# Async Messaging (Must match the message-broker service)
-redis==5.0.1
-rq==1.15.1                    # Python Redis Queue for job management
-
-# API/Core Logic
-fastapi==0.104.1
-uvicorn==0.24.0.post1
-pydantic==2.5.2
-requests==2.31.0            # For communicating with the Ollama service
-# Add other LLM/Engine-specific dependencies here
+# --- Engine Service (The Brain) Requirements ---
+# Focused on LLM, database, and background job processing.
+# MUST include database and AI heavy dependencies.
+fastapi
+uvicorn[standard]
+pydantic
+psycopg2-binary # Postgres adapter (required for RLS/PoLP)
+pgvector # Required for vector similarity search
+langchain # Common LLM orchestration library
+ollama # Client for the local LLM service
+rq # Redis Queue or similar message queue worker library

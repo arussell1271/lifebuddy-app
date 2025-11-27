@@ -1,9 +1,9 @@
-# app/app_requirements.txt
-# Dependencies for the public-facing Application Service (App/Body).
-# MUST NOT include database or AI-specific libraries.
-
-fastapi==0.104.1
-uvicorn[standard]==0.24.0.post1
-pydantic==2.5.2
-python-jose[cryptography]==3.3.0
-# Add other App-specific non-DB/AI dependencies here
+# --- App Service (The Body) Requirements ---
+# Focused on web-facing API, authentication, and internal communication.
+# MUST NOT include database or AI heavy dependencies.
+fastapi
+uvicorn[standard]
+pydantic
+python-jose[cryptography] # For JWT handling
+httpx # For calling the internal Engine API
+redis # For job initiation

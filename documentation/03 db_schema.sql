@@ -44,8 +44,23 @@ RETURNS UUID AS $$
     SELECT current_setting('app.current_user_id', true)::UUID;
 $$ LANGUAGE SQL STABLE;
 
-
 -- =========================================================================
+-- 1.5 USERS (Identity & Auth Root)
+-- =========================================================================
+
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255), -- Nullable if using external auth providers (e.g. Google)
+    full_name VARCHAR(100),
+    
+    -- Metadata
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enable RLS immediately so Section 11 policies can attach later
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 
 -- =========================================================================
 -- 2. ACTIONABLE ITEMS (The 'Goal/Task' definition - EXECUTE component)
@@ -350,7 +365,7 @@ CREATE INDEX idx_cognitive_state_user_date ON user_cognitive_state (user_id, sta
 -- Enable RLS on all user-owned tables.
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_cognitive_state ENABLE ROW LEVEL SECURITY;
-ALTER TABLE pre_synthesis_questions ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE pre_synthesis_questions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE actionable_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE adherence_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE health_metrics ENABLE ROW LEVEL SECURITY;
@@ -371,10 +386,11 @@ CREATE POLICY user_isolation_cognitive_state ON user_cognitive_state
     WITH CHECK (user_id = get_current_user_id());
 
 -- Pre-Synthesis Questions: Enforce RLS for user's specific question history.
-CREATE POLICY user_isolation_pre_synthesis ON pre_synthesis_questions
-    FOR ALL
-    USING (user_id = get_current_user_id())
-    WITH CHECK (user_id = get_current_user_id());
+-- Removed due to RLS not being enabled on this table.
+-- CREATE POLICY user_isolation_pre_synthesis ON pre_synthesis_questions
+--     FOR ALL
+--     USING (user_id = get_current_user_id())
+--     WITH CHECK (user_id = get_current_user_id());
 
 -- Actionable Items: Enforce RLS for user's personalized tasks.
 CREATE POLICY rls_actionable_items_isolation ON actionable_items
@@ -401,27 +417,24 @@ CREATE POLICY user_isolation_documents ON documents
     WITH CHECK (user_id = get_current_user_id());
 
 -- =========================================================================
--- 12. DATABASE MAINTENANCE REQUIREMENT 🧹 (ACTIVE DDL)
+-- 12. STORED PROCEDURES (MAINTENANCE & PURGE)
 -- =========================================================================
 
--- CRITICAL MAINTENANCE: A nightly cron job MUST execute a stored procedure 
--- to enforce the 4-Day Data Retention Standard on the user_cognitive_state table.
-
--- The required Stored Procedure (logic is documented in 04 standards guide.md)
--- This procedure will need to be executed by a user with sufficient privileges 
--- (e.g., 'cognitive_engine_full')
-
+-- Procedure to enforce the 4-Day Rolling Window for user_cognitive_state.
+-- This MUST be run by a privileged user (e.g., 'cognitive_engine_full') on a nightly schedule.
 CREATE OR REPLACE PROCEDURE db_maintenance_purge_old_state()
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    -- Deletes all state records older than the 4-day retention window defined in standards.
-    -- NOTE: Assuming 'state_date' is the correct column name based on the original comment.
+    RAISE NOTICE 'Starting purge of user_cognitive_state entries older than 4 days...';
+
+    -- Delete all records in user_cognitive_state where the created_at timestamp
+    -- is older than 4 days from the current time.
     DELETE FROM user_cognitive_state
-    WHERE state_date < (CURRENT_DATE - INTERVAL '4 days');
-    
-    -- Optional: Add a notice for logging when the procedure is called
-    RAISE NOTICE 'Maintenance: Purged user_cognitive_state entries older than 4 days.';
+    WHERE created_at < NOW() - INTERVAL '4 days';
+
+    -- Log the operation success
+    RAISE NOTICE 'Purge complete. % rows deleted.', ROW_COUNT();
 END;
 $$;
 
@@ -438,24 +451,24 @@ $$;
 -- 13.1 SEED DATA: cognitive_definitions (LLM Prompt Templates/Initial Prompts)
 
 -- Defines the core prompt used for the CULTIVATE Synthesis phase.
-INSERT INTO cognitive_definitions (definition_key, definition_value, definition_type) VALUES
+INSERT INTO cognitive_definitions (definition_key, system_prompt_template, advisor_role) VALUES
 ('CULTIVATE_SYNTHESIS_PROMPT', 
 'You are an analytical, non-judgmental health coach. Your task is to review the provided user journal entries, dream logs, and actionable item adherence history. Identify the single most dominant "Limiting Subconscious Misalignment" theme. Your output MUST be a JSON object: {"theme": "THEME_NAME", "summary": "CONCISE_EXPLANATION"}.',
-'LLM_PROMPT')
+'CULTIVATE')
 ON CONFLICT (definition_key) DO NOTHING;
 
 -- Defines the prompt used for the EXECUTE Action Item generation phase.
-INSERT INTO cognitive_definitions (definition_key, definition_value, definition_type) VALUES
+INSERT INTO cognitive_definitions (definition_key, system_prompt_template, advisor_role) VALUES
 ('EXECUTE_ITEM_GENERATION_PROMPT', 
 'Based on the identified Limiting Subconscious Misalignment (THEME: {theme}), generate a single "Holistic Actionable Item" (identity-focused, not task-focused) to address it. Your output MUST be a JSON object: {"title": "ITEM_TITLE", "description": "ITEM_DESCRIPTION"}.',
-'LLM_PROMPT')
+'EXECUTE')
 ON CONFLICT (definition_key) DO NOTHING;
 
 
 -- 13.2 SEED DATA: pre_synthesis_questions (Mandatory Daily Check)
 
 -- Essential questions to gather CULTIVATE/EXECUTE data before full Synthesis.
-INSERT INTO pre_synthesis_questions (question_text, question_type, expected_format, order_index) VALUES
+INSERT INTO pre_synthesis_questions (question_text, advisor_type, expected_format, display_order) VALUES
 ('What was the dominant emotion in your most recent dream?', 'CULTIVATE', 'single-word emotion', 1)
 ON CONFLICT (question_text) DO NOTHING,
 ('What is the single most important action item you failed to adhere to yesterday?', 'EXECUTE', 'short description or item reference', 2)
@@ -466,6 +479,12 @@ ON CONFLICT (question_text) DO NOTHING;
 -- =========================================================================
 -- 14. INDEXES FOR PERFORMANCE
 -- =========================================================================
+
+-- Add the Vector Index required for fast Disalignment Frequency Count (DFC)
+-- lookups in the Cultivate Synthesis Logic (07 engine logic specifications.md).
+-- Using IVFFLAT for efficient approximate nearest neighbor search on the theme vectors.
+CREATE INDEX idx_synthesis_theme_vector ON synthesis_log USING ivfflat (theme_vector vector_l2_ops)
+WITH (lists = 100); -- 'lists' should be ~sqrt(num_rows), setting 100 as a standard starting point for a growing table.
 
 CREATE INDEX idx_actionable_user_type ON actionable_items (user_id, item_type);
 CREATE INDEX idx_adherence_user_date ON adherence_log (user_id, log_date);

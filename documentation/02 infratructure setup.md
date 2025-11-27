@@ -68,6 +68,17 @@ This manifest defines the minimum required environment variables that **MUST** b
 | **JWT_ALGORITHM** | The signing algorithm for JWTs. | `HS256` |
 | **APP_SECRET_KEY** | A shared secret/API key for internal App-to-Engine communication. | Used for internal service-to-service validation. |
 
+#### A.1. Mandatory JWT Claims Specification (CRITICAL RLS ENFORCEMENT)
+
+All generated JWTs **MUST** contain the following claims. The App Service relies solely on these claims to enforce the Proxied API Pattern for RLS.
+
+| Claim Key | Data Type | Purpose |
+| :--- | :--- | :--- |
+| `sub` | String (UUID) | The **User ID** (e.g., `user_id` from the `users` table). **This is the identifier extracted and passed to the Engine.** |
+| `aud` | String | Audience claim, must be set to `life-buddy-app` for all tokens. |
+| `iat` | Integer (timestamp) | Issued At time. |
+| `exp` | Integer (timestamp) | Expiration time. |
+
 ### B. Database Connection Variables
 
 These variables define the credentials for the roles created in `03 db_schema.sql`.
