@@ -161,15 +161,19 @@ services:
       - dev
     restart: unless-stopped
 
-  # 9. OLLAMA (Local LLM Engine)
+# 9. OLLAMA (Local LLM Engine)
   ollama:
     container_name: ollama
     image: ollama/ollama:latest
+    # CRITICAL ADDITION: Pull the necessary model on startup for the engine to function.
+    # The Engine is assumed to be configured to use the 'mistral' model.
+    command: >
+      /bin/sh -c "ollama pull mistral && ollama serve"
     volumes:
       - ollama_models:/root/.ollama
     networks:
       - core-network
-    restart: always
+    restart: unless-stopped
 
   # 10. AI WEB UI (Open WebUI)
   open_webui:

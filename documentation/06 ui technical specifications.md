@@ -247,3 +247,20 @@ The App Service MUST use this endpoint for all operations that require fetching 
 | **App Service Action** | 1. Decode the authenticated `user_id` from the user's JWT. 2. Pass this `user_id` as the path parameter. 3. Pass the original user request body/query parameters as the payload to the Engine. |
 | **Purpose** | Proxies the request to the Engine, allowing the Engine to safely set the RLS context (`SET app.current_user_id = '{user_id}';`) before executing the requested business logic (`engine_route`). |
 | **Example App Call** | App calls Engine: `POST cognitive-engine:8001/api/v1/data-proxy/123e4567-e89b.../health-metrics` |
+
+## 4.4 API Route Mapping: Synchronous Data Proxy Endpoints (RLS MANDATORY)
+
+The App Service MUST use the RLS Proxy pattern (`POST /api/v1/data-proxy/{user_id}/{engine_route}`) for all synchronous user data operations.
+
+This table defines the required `engine_route` values for the Engine Service.
+
+| Functional Goal | HTTP Method | Client App Path/Action | Required `engine_route` Parameter | Engine Logic Performed |
+| :--- | :--- | :--- | :--- | :--- |
+| **User Identity** | `GET` | Retrieve User Profile/Stats | `get_user_profile` | Fetches data from `users` and `cognitive_efficacy_metrics`. |
+| **Action Items** | `GET` | Fetch all pending items | `get_all_action_items` | Fetches data from `actionable_items` where `is_complete = FALSE`. |
+| **Action Items** | `POST` | Create a new action item | `create_action_item` | Inserts a new row into `actionable_items`. |
+| **Action Items** | `PUT` | Mark item as complete | `complete_action_item` | Updates `actionable_items.is_complete = TRUE` and logs adherence. |
+| **Daily Check** | `GET` | Get status of daily check | `get_daily_check_status` | Queries `pre_synthesis_answers` to determine if all mandatory questions are `COMPLETE`. |
+| **Daily Check** | `POST` | Submit a daily answer | `submit_daily_answer` | Inserts an answer into `pre_synthesis_answers` and performs implicit check logic. |
+| **Documents** | `GET` | Fetch recent dreams/journals | `get_recent_documents` | Retrieves up to the last 5 `DREAM` and `JOURNAL` documents. |
+| **Documents** | `POST` | Upload a new document | `create_document` | Inserts a new document row and triggers the vector embedding job. |

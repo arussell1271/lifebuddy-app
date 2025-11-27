@@ -1,17 +1,9 @@
 # app/app_requirements.txt
+# Dependencies for the public-facing Application Service (App/Body).
+# MUST NOT include database or AI-specific libraries.
 
-# Web Framework (FastAPI is fast and modern)
-fastapi
-# ASGI Server (Uvicorn provides the hot-reloading needed for development)
-uvicorn[standard]
-gunicorn
-
-# Database/Vector Store Connectors
-# Any DB interaction for the App Service MUST go through the Engine API or message-broker.
-# Other App-specific dependencies...
-redis 
-# Required for App-to-Engine asynchronous task queuing.
-
-# You will likely need additional libraries based on your AI toolkit, e.g.:
-# For using pgvector easily: pgvector-python
-# For Local LLMs: ollama (or an embedding model library like sentence-transformers)
+fastapi==0.104.1
+uvicorn[standard]==0.24.0.post1
+pydantic==2.5.2
+python-jose[cryptography]==3.3.0
+# Add other App-specific non-DB/AI dependencies here
