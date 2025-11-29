@@ -358,7 +358,36 @@ CREATE POLICY user_isolation_cognitive_state ON user_cognitive_state
 CREATE INDEX idx_cognitive_state_user_date ON user_cognitive_state (user_id, state_date, status);
 
 -- =========================================================================
--- 11. CRITICAL ROW-LEVEL SECURITY (RLS) POLICIES
+-- 11. TABLE: pre_synthesis_answers
+-- Purpose: Stores the user's daily answers to mandatory pre-synthesis questions.
+-- This data is a prerequisite for the Cognitive Synthesis process.
+-- =========================================================================
+CREATE TABLE pre_synthesis_answers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    question_id INTEGER NOT NULL REFERENCES pre_synthesis_questions(id) ON DELETE RESTRICT,
+    answer_text TEXT NOT NULL, -- Stores the user's textual or numerical answer
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'ANSWERED_EXPLICIT', 'ANSWERED_IMPLICIT')),
+    log_date DATE NOT NULL DEFAULT CURRENT_DATE, -- Tracks the calendar day for the answer
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    -- CRITICAL CONSTRAINT: A user can only answer a specific question once per day.
+    UNIQUE (user_id, question_id, log_date)
+);
+
+-- RLS Enforcement: Enforce Row-Level Security (PoLP)
+ALTER TABLE pre_synthesis_answers ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY user_access_pre_synthesis_answers ON pre_synthesis_answers
+    USING (user_id = public.get_current_user_id())
+    WITH CHECK (user_id = public.get_current_user_id());
+
+-- Index for fast lookup by user and day
+CREATE INDEX idx_pre_synthesis_answers_user_date ON pre_synthesis_answers (user_id, log_date);
+
+-- =========================================================================
+-- 12. CRITICAL ROW-LEVEL SECURITY (RLS) POLICIES
 --    MANDATORY ENFORCEMENT using get_current_user_id() for multi-tenancy.
 -- =========================================================================
 
@@ -417,24 +446,32 @@ CREATE POLICY user_isolation_documents ON documents
     WITH CHECK (user_id = get_current_user_id());
 
 -- =========================================================================
--- 12. STORED PROCEDURES (MAINTENANCE & PURGE)
+-- 13. STORED PROCEDURES (MAINTENANCE & PURGE)
 -- =========================================================================
 
--- Procedure to enforce the 4-Day Rolling Window for user_cognitive_state.
+-- Procedure to enforce the 4-Day Rolling Window for user_cognitive_state AND pre_synthesis_answers.
 -- This MUST be run by a privileged user (e.g., 'cognitive_engine_full') on a nightly schedule.
 CREATE OR REPLACE PROCEDURE db_maintenance_purge_old_state()
 LANGUAGE plpgsql
 AS $$
+DECLARE
+    state_deleted_count INTEGER;
+    answers_deleted_count INTEGER;
 BEGIN
-    RAISE NOTICE 'Starting purge of user_cognitive_state entries older than 4 days...';
+    RAISE NOTICE 'Starting purge of transient data older than 4 days...';
 
-    -- Delete all records in user_cognitive_state where the created_at timestamp
-    -- is older than 4 days from the current time.
+    -- 1. Purge Old User Cognitive State
     DELETE FROM user_cognitive_state
     WHERE created_at < NOW() - INTERVAL '4 days';
+    GET DIAGNOSTICS state_deleted_count = ROW_COUNT;
 
-    -- Log the operation success
-    RAISE NOTICE 'Purge complete. % rows deleted.', ROW_COUNT();
+    -- 2. Purge Old Pre-Synthesis Answers (New Requirement)
+    DELETE FROM pre_synthesis_answers
+    WHERE created_at < NOW() - INTERVAL '4 days';
+    GET DIAGNOSTICS answers_deleted_count = ROW_COUNT;
+
+    -- Log the operation success with counts
+    RAISE NOTICE 'Purge complete: % user_cognitive_state rows deleted, % pre_synthesis_answers rows deleted.', state_deleted_count, answers_deleted_count;
 END;
 $$;
 
@@ -442,13 +479,13 @@ $$;
 -- CALL db_maintenance_purge_old_state(); once daily.
 
 -- =========================================================================
--- 13. MANDATORY SEED DATA (DML) - Application Fails Without This 🚨
+-- 14. MANDATORY SEED DATA (DML) - Application Fails Without This 🚨
 -- =========================================================================
 
 -- Purpose: Contains all mandatory Data Manipulation Language (DML) statements to populate
 -- application-critical tables that define business logic.
 
--- 13.1 SEED DATA: cognitive_definitions (LLM Prompt Templates/Initial Prompts)
+-- 14.1 SEED DATA: cognitive_definitions (LLM Prompt Templates/Initial Prompts)
 
 -- Defines the core prompt used for the CULTIVATE Synthesis phase.
 INSERT INTO cognitive_definitions (definition_key, system_prompt_template, advisor_role) VALUES
@@ -465,7 +502,7 @@ INSERT INTO cognitive_definitions (definition_key, system_prompt_template, advis
 ON CONFLICT (definition_key) DO NOTHING;
 
 
--- 13.2 SEED DATA: pre_synthesis_questions (Mandatory Daily Check)
+-- 14.2 SEED DATA: pre_synthesis_questions (Mandatory Daily Check)
 
 -- Essential questions to gather CULTIVATE/EXECUTE data before full Synthesis.
 INSERT INTO pre_synthesis_questions (question_text, advisor_type, expected_format, display_order) VALUES
@@ -477,7 +514,7 @@ ON CONFLICT (question_text) DO NOTHING,
 ON CONFLICT (question_text) DO NOTHING;
 
 -- =========================================================================
--- 14. INDEXES FOR PERFORMANCE
+-- 15. INDEXES FOR PERFORMANCE
 -- =========================================================================
 
 -- Add the Vector Index required for fast Disalignment Frequency Count (DFC)

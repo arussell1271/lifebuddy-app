@@ -76,18 +76,6 @@ This process ensures all data access is strictly limited by the database's RLS p
 
 For all asynchronous jobs (e.g., Synthesis, Report Generation) initiated by the App Service through the `message-broker`, the client/App must poll this endpoint for status updates and results.
 
-| Property | Value |
-| :--- | :--- |
-| **Endpoint Pattern** | `GET /api/v1/jobs/{job_id}` |
-| **Method** | GET |
-| **Authentication** | Required (Internal JWT/Shared Secret for App-to-Engine communication). |
-| **Engine Service Action** | 1. Query Redis (via `message-broker`) using the `job_id`. 2. Return the current job status and the resulting data/location if complete. |
-| **Success Response (Pending)** | `200 OK` / `{"status": "PROCESSING", "progress": 55, "message": "Analyzing dream documents..."}` |
-| **Success Response (Complete)** | `200 OK` / `{"status": "COMPLETE", "result_uri": "/api/v1/synthesis-report/{job_id}", "message": "Report is ready."}` |
-| **Failure Response** | `500 Internal Error` / `{"status": "FAILED", "error": "LLM returned un-parseable output."}` |
-
-## V. Asynchronous Job Polling Contract (CRITICAL) ⏱️
-
 For all asynchronous jobs (e.g., Synthesis, Report Generation) initiated by the App Service through the `message-broker`, the client/App must poll this endpoint for status updates and results.
 
 | Property | Value |
@@ -98,8 +86,6 @@ For all asynchronous jobs (e.g., Synthesis, Report Generation) initiated by the 
 | **Engine Service Action** | 1. Query Redis (via `message-broker`) using the `job_id`. 2. Return the current job status and the resulting data/location if complete. |
 | **Success Response (Pending)** | `200 OK` / `{"status": "PROCESSING", "progress": 55, "message": "Analyzing dream documents..."}` |
 | **Success Response (Complete)** | `200 OK` / `{"status": "COMPLETE", "result_uri": "/api/v1/synthesis-report/{job_id}", "message": "Report is ready."}` |
-
----
 
 ### V.1. Client-Side Polling Mitigation Strategy (MANDATORY) ⚠️
 
@@ -113,3 +99,23 @@ To prevent network strain and denial-of-service risks due to excessive polling, 
 | **Max Retries** | `60` | Caps the total polling time for an extremely long job (e.g., 15 minutes max). |
 
 **Polling Wait Calculation:** `Delay(n) = min(Initial Delay * (Backoff Multiplier ^ n), Maximum Delay)`
+
+---
+
+---
+
+### VI. System Maintenance Logic (Nightly Cron Job)
+
+The nightly `db_maintenance_cron` service enforces the **4-Day Rolling Window** data retention standard (as per `04 standards guide.md`) by executing a single, privileged stored procedure on the database.
+
+| Property | Value | Rationale |
+| :--- | :--- | :--- |
+| **Service Target** | `db_maintenance_cron` (as defined in `docker-compose.yml`) | Runs nightly as a scheduled job. |
+| **Database Role** | **`cognitive_engine_full`** | **MANDATORY:** Must use the RLS-bypassing role to execute the privileged stored procedure. |
+| **Action** | `CALL db_maintenance_purge_old_state();` | Offloads the processing logic to the database server. |
+
+#### A. Stored Procedure Enforcement
+
+The logic for purging both the `user_cognitive_state` and `pre_synthesis_answers` tables is defined directly in the **`db_maintenance_purge_old_state()`** stored procedure in `03 db_schema.sql`. The Engine Service's cron job is only responsible for connecting with the **`cognitive_engine_full`** role and issuing the `CALL` command.
+
+---
