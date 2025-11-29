@@ -53,12 +53,11 @@ services:
     profiles: [ "prod" ]
     restart: always
     
-  # 3. MESSAGE QUEUE (Redis - Mandatory Asynchronous Broker)
+  # 3.REDIS (Message Broker)
+ # FIXED: Explicitly named service 'message-broker' to match documentation.
   message-broker:
-    # Service Name: message-broker
-    container_name: message_broker
+    container_name: message-broker
     image: redis:latest
-    # CRITICAL: NO PORTS EXPOSED TO HOST FOR SECURITY
     networks:
       - core-network
     restart: always
@@ -81,11 +80,12 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - message-broker # CRITICAL: Needs MQ for asynchronous tasking
-      - cognitive-engine # Can poll Engine for job status
+      - prod_db
+      - message-broker
+      - prod_engine
     networks:
-      - frontend-network # Public access
-      - core-network # Needs access to MQ
+      - frontend-network # User access
+      - core-network     # Database/Engine access
     profiles: [ "dev" ]
     restart: always
 
@@ -194,7 +194,7 @@ services:
     # CRITICAL ADDITION: Pull the necessary model on startup for the engine to function.
     # The Engine is assumed to be configured to use the 'mistral' model.
     command: >
-      /bin/sh -c "ollama pull mistral && ollama serve"
+      /bin/sh -c "ollama serve & sleep 5 && ollama pull mistral && wait"
     volumes:
       - ollama_models:/root/.ollama
     networks:

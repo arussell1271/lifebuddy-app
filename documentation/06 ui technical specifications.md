@@ -25,6 +25,8 @@
 
 ### 2.1 API Contracts (App Service - `app/api/v1/auth`)
 
+⚠️ ARCHITECTURAL EXCEPTION: While the general architecture follows an Asynchronous/Polling pattern, Authentication endpoints are Synchronous. The App Service waits for the Engine to validate credentials and return the JWT before responding to the client to ensure a smooth login UX.
+
 #### A. User Login: Token Acquisition (CRITICAL: Proxied to Engine)
 
 | Property | Value |

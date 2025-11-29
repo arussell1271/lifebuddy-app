@@ -22,16 +22,25 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- =========================================================================
 
 -- Role 1: 'cognitive_engine_full'
--- Purpose: For Administrative/Maintenance tasks ONLY (e.g., nightly purge, schema updates). 
+-- Purpose: For Administrative/Maintenance tasks ONLY (e.g., nightly purge, schema updates).
 -- This role MUST NOT be used for serving live user requests. It BYPASSES RLS.
--- Example Creation (requires manual step in deployment):
--- CREATE ROLE cognitive_engine_full WITH LOGIN PASSWORD '<<strong_password_1>>';
+-- REPLACE 'ChangeThisToYourActualPassword' with the value from your .env file
+CREATE ROLE cognitive_engine_full WITH LOGIN PASSWORD 'FULL_ACCESS_PASS_CRITICAL';
 
 -- Role 2: 'cognitive_engine_rls'
--- Purpose: For ALL live user data access via the RLS Proxy API.
--- This role MUST be used by the Engine when serving user requests and IS strictly constrained by RLS.
--- Example Creation (requires manual step in deployment):
--- CREATE ROLE cognitive_engine_rls WITH LOGIN PASSWORD '<<strong_password_2>>';
+-- Purpose: For Standard User Operations (App Service Proxy).
+-- This role MUST be used for all user-facing queries. It ENFORCES RLS.
+-- REPLACE 'ChangeThisToYourActualPassword' with the value from your .env file
+CREATE ROLE cognitive_engine_rls WITH LOGIN PASSWORD 'RLS_ACCESS_PASS_CRITICAL';
+
+-- GRANT PERMISSIONS
+-- Allow these roles to connect to the specific database
+GRANT CONNECT ON DATABASE postgres TO cognitive_engine_full;
+GRANT CONNECT ON DATABASE postgres TO cognitive_engine_rls;
+
+-- Grant usage on schema public
+GRANT USAGE ON SCHEMA public TO cognitive_engine_full;
+GRANT USAGE ON SCHEMA public TO cognitive_engine_rls;
 
 
 -- Set a custom configuration setting that the application will use to hold the authenticated user's ID.
@@ -48,11 +57,11 @@ $$ LANGUAGE SQL STABLE;
 -- 1.5 USERS (Identity & Auth Root)
 -- =========================================================================
 
-CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password_hash VARCHAR(255), -- Nullable if using external auth providers (e.g. Google)
-    full_name VARCHAR(100),
+CREATE TABLE IF NOT EXISTS users (
+    user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    username VARCHAR(50) UNIQUE NOT NULL, -- **CRITICAL ADDITION:** Required for login as per functional specification
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
     
     -- Metadata
     created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -66,7 +75,7 @@ ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 -- 2. ACTIONABLE ITEMS (The 'Goal/Task' definition - EXECUTE component)
 -- =========================================================================
 
-CREATE TABLE actionable_items (
+CREATE TABLE IF NOT EXISTS actionable_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id),
     title VARCHAR(255) NOT NULL,
@@ -97,7 +106,7 @@ CREATE POLICY user_isolation_action_items ON actionable_items
 -- 3. ADHERENCE LOG (The 'Execution' tracking - EXECUTE component)
 -- =========================================================================
 
-CREATE TABLE adherence_log (
+CREATE TABLE IF NOT EXISTS adherence_log (
     actionable_item_id UUID NOT NULL REFERENCES actionable_items(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id), -- Redundant user_id for RLS and query performance
     log_date DATE NOT NULL,
@@ -123,7 +132,7 @@ CREATE POLICY user_isolation_adherence_log ON adherence_log
 -- 4. DOCUMENTS (Unstructured Cognitive Data - CULTIVATE component)
 -- =========================================================================
 
-CREATE TABLE documents (
+CREATE TABLE IF NOT EXISTS documents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id),
     
@@ -147,7 +156,7 @@ CREATE POLICY user_isolation_documents ON documents
 -- 5. HEALTH METRICS (Structured Clinical Data - CONTRIBUTE component)
 -- =========================================================================
 
-CREATE TABLE health_metrics (
+CREATE TABLE IF NOT EXISTS health_metrics (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id),
     
@@ -176,7 +185,7 @@ CREATE POLICY user_isolation_health_metrics ON health_metrics
 -- 6. VECTOR STORAGE (Digital Memory - Supports CULTIVATE retrieval)
 -- =========================================================================
 
-CREATE TABLE document_vectors (
+CREATE TABLE IF NOT EXISTS document_vectors (
     document_id UUID PRIMARY KEY REFERENCES documents(id) ON DELETE CASCADE,
     embedding VECTOR(1536) NOT NULL,
     
@@ -195,7 +204,7 @@ CREATE POLICY user_isolation_document_vectors ON document_vectors
 -- 7. USER PREFERENCES (Configuration - Supports all components)
 -- =========================================================================
 
-CREATE TABLE user_preferences (
+CREATE TABLE IF NOT EXISTS user_preferences (
     user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, -- One-to-one relationship with users
     
     -- Advisor Naming
@@ -217,7 +226,7 @@ CREATE TABLE user_preferences (
 );
 
 -- Stores explicit, revokable consent for professionals (Secondary Users) to access a Primary User's data.
-CREATE TABLE data_access_grants (
+CREATE TABLE IF NOT EXISTS data_access_grants (
     grant_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     primary_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- Corrected reference to users(id)
     professional_user_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT, -- Corrected reference to users(id)
@@ -255,7 +264,7 @@ CREATE POLICY user_isolation_preferences ON user_preferences
 
 -- Stores the base prompts, modifier prompts (e.g., 'TAROT' mode), and roles 
 -- for the Cognitive Engine (The Brain).
-CREATE TABLE cognitive_definitions (
+CREATE TABLE IF NOT EXISTS cognitive_definitions (
     definition_key VARCHAR(100) PRIMARY KEY, -- Unique key (e.g., 'CULTIVATE_BASE', 'CULTIVATE_MODE_TAROT')
     
     advisor_role VARCHAR(50) NOT NULL CHECK (advisor_role IN ('CULTIVATE', 'EXECUTE', 'CONTRIBUTE')), -- The macro-advisor this definition belongs to
@@ -274,7 +283,7 @@ CREATE TABLE cognitive_definitions (
 
 -- Stores aggregated, anonymized metrics to measure the system's effectiveness 
 -- against the core hypotheses (H1, H2, H3).
-CREATE TABLE cognitive_efficacy_metrics (
+CREATE TABLE IF NOT EXISTS cognitive_efficacy_metrics (
     metric_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     
     -- The hypothesis or area being measured (e.g., 'H3_OVERALL_ADHERENCE', 'H2_PREDICTION_ACCURACY')
@@ -299,7 +308,7 @@ CREATE TABLE cognitive_efficacy_metrics (
 -- 9. PRE-SYNTHESIS QUESTIONS (Engine Configuration Data)
 -- =========================================================================
 
-CREATE TABLE pre_synthesis_questions (
+CREATE TABLE IF NOT EXISTS pre_synthesis_questions (
     question_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     
     -- The advisor area this question belongs to: 'CULTIVATE', 'EXECUTE', 'CONTRIBUTE'
@@ -326,7 +335,7 @@ CREATE TABLE pre_synthesis_questions (
 -- Tracks the completion status of mandatory daily/contextual questions per user.
 -- CRITICAL RETENTION MANDATE: Data MUST be purged after a 4-day rolling window.
 
-CREATE TABLE user_cognitive_state (
+CREATE TABLE IF NOT EXISTS user_cognitive_state (
     user_id UUID NOT NULL REFERENCES users(id),
     
     -- Date of the status check (ensures a reset every day)
@@ -362,7 +371,7 @@ CREATE INDEX idx_cognitive_state_user_date ON user_cognitive_state (user_id, sta
 -- Purpose: Stores the user's daily answers to mandatory pre-synthesis questions.
 -- This data is a prerequisite for the Cognitive Synthesis process.
 -- =========================================================================
-CREATE TABLE pre_synthesis_answers (
+CREATE TABLE IF NOT EXISTS pre_synthesis_answers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     question_id INTEGER NOT NULL REFERENCES pre_synthesis_questions(id) ON DELETE RESTRICT,
