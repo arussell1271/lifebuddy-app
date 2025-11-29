@@ -72,7 +72,9 @@ services:
   app:
     # Service Name: app
     container_name: dev_app
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.app # <-- NOW USES THE MINIMAL APP-ONLY IMAGE
     env_file:
       - .env.dev
     command: gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000
@@ -91,12 +93,12 @@ services:
   cognitive-engine:
     # Service Name: cognitive-engine
     container_name: dev_engine
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.engine # <-- NOW USES THE FULL ENGINE IMAGE
     env_file:
       - .env.dev
     command: gunicorn engine.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.00.0.0:8001
-    ports:
-      - "8001:8001"
     depends_on:
       - dev_db
       - ollama
@@ -110,7 +112,9 @@ services:
   prod_app:
     # Service Name: prod_app
     container_name: prod_app
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.app # <-- NOW USES THE MINIMAL APP-ONLY IMAGE
     env_file:
       - .env.prod
     command: gunicorn app.main:app -w 8 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000
@@ -129,7 +133,9 @@ services:
   prod_engine:
     # Service Name: prod_engine
     container_name: prod_engine
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.engine # <-- NOW USES THE FULL ENGINE IMAGE
     env_file:
       - .env.prod
     command: gunicorn engine.main:app -w 8 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8001
@@ -142,7 +148,27 @@ services:
     profiles: [ "prod" ]
     restart: always
 
-  # 8. PGADMIN (DB Admin Tool)
+# 8. MAINTENANCE SERVICE (NEW - For Privileged Cron Jobs) 🚨
+  # Mandated by the Data Retention Standard (04 standards guide.md)
+  maintenance-service:
+    container_name: maintenance-service
+    env_file:
+      - .env.dev
+    # Use the Engine image as it requires the privileged full DB role and all dependencies
+    build:
+      context: .
+      dockerfile: Dockerfile.engine 
+    depends_on:
+      - dev_db
+    # CRITICAL: No exposed ports. Only on the secure core-network.
+    networks:
+      - core-network
+    profiles: [ "dev" ]
+    restart: "no" # This is a job, not a continuously running server
+    # Entrypoint to run the nightly purge script (Example path)
+    command: python /usr/src/app/engine/maintenance/run_purge_cron.py
+  
+  # 9. PGADMIN (DB Admin Tool)
   pgadmin:
     container_name: pgadmin
     image: dpage/pgadmin4
@@ -150,7 +176,7 @@ services:
       - "5050:80"
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@lifebuddy.com 
-      PGADMIN_DEFAULT_PASSWORD: verysecurepgadminpassword
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASS}
     volumes:
       - pgadmin_data:/var/lib/pgadmin
     depends_on:
@@ -161,7 +187,7 @@ services:
       - dev
     restart: unless-stopped
 
-# 9. OLLAMA (Local LLM Engine)
+# 10. OLLAMA (Local LLM Engine)
   ollama:
     container_name: ollama
     image: ollama/ollama:latest
@@ -175,7 +201,7 @@ services:
       - core-network
     restart: unless-stopped
 
-  # 10. AI WEB UI (Open WebUI)
+  # 11. AI WEB UI (Open WebUI)
   open_webui:
     container_name: open_webui
     image: ghcr.io/open-webui/open-webui:main
