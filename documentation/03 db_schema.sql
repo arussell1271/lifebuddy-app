@@ -47,11 +47,10 @@ GRANT USAGE ON SCHEMA public TO cognitive_engine_rls;
 -- The Engine RLS Proxy MUST execute: SET app.current_user_id = 'the-user-uuid';
 ALTER DATABASE postgres SET app.current_user_id TO '';
 
--- Define a reusable function to get the current user ID from the application context.
-CREATE OR REPLACE FUNCTION get_current_user_id()
-RETURNS UUID AS $$
-    SELECT current_setting('app.current_user_id', true)::UUID;
-$$ LANGUAGE SQL STABLE;
+
+-- The application context setting used for Row-Level Security: 
+-- The Engine RLS Proxy MUST execute: SELECT set_config('app.current_user_id', 'the-user-uuid', FALSE); 
+-- RLS policies will reference this setting directly: current_setting('app.current_user_id')::uuid 
 
 -- =========================================================================
 -- 1.5 USERS (Identity & Auth Root)
@@ -93,14 +92,25 @@ CREATE TABLE IF NOT EXISTS actionable_items (
     updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- ------------------------------
--- RLS Policy on actionable_items
--- ------------------------------
-ALTER TABLE actionable_items ENABLE ROW LEVEL SECURITY;
-CREATE POLICY user_isolation_action_items ON actionable_items
-    USING (user_id = get_current_user_id())
-    WITH CHECK (user_id = get_current_user_id());
+-- ------------------------------ 
+-- RLS Policy on actionable_items (DUAL-MODE ACCESS IMPLEMENTED) 
+-- ------------------------------ 
+ALTER TABLE actionable_items ENABLE ROW LEVEL SECURITY; 
+DROP POLICY IF EXISTS user_isolation_action_items ON actionable_items; 
+CREATE POLICY user_isolation_action_items ON actionable_items 
+    USING ( -- Condition 1: Primary Owner Isolation 
+        (user_id = current_setting('app.current_user_id')::uuid) 
+    OR ( -- Condition 2: Delegated Access (Grantee must be active and scoped) 
+    EXISTS ( SELECT 1 FROM data_access_grants dag WHERE dag.primary_user_id = actionable_items.user_id 
+        AND dag.professional_user_id = current_setting('app.current_user_id')::uuid 
+        AND dag.revoked_at IS NULL 
+        -- MANDATORY: Granular scope check for this data type 
+        AND dag.access_scope -> 'action_items' ? 'read' 
+        ) ) ) 
+        -- Write Isolation: Only Primary Owner can modify/insert 
+        WITH CHECK (user_id = current_setting('app.current_user_id')::uuid); 
 
+ALTER TABLE actionable_items FORCE ROW LEVEL SECURITY;
 
 -- =========================================================================
 -- 3. ADHERENCE LOG (The 'Execution' tracking - EXECUTE component)
@@ -144,12 +154,34 @@ CREATE TABLE IF NOT EXISTS documents (
 );
 
 -- ------------------------------
--- RLS Policy on documents
+-- DUAL-MODE RLS POLICY TEMPLATE (Replace ALL policy blocks for user-owned data tables)
+-- Example for 'documents' table (Replace documents with table name and scope key)
 -- ------------------------------
 ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
-CREATE POLICY user_isolation_documents ON documents
-    USING (user_id = get_current_user_id())
-    WITH CHECK (user_id = get_current_user_id());
+DROP POLICY IF EXISTS user_isolation_documents ON documents;
+CREATE POLICY user_isolation_documents
+    ON documents
+    USING (
+        -- Condition 1: Primary Owner Isolation
+        (user_id = current_setting('app.current_user_id')::uuid) 
+        OR
+        (
+            -- Condition 2: Delegated Access via Active Grant WITH Granular Scope Check
+            EXISTS (
+                SELECT 1
+                FROM data_access_grants dag
+                WHERE dag.primary_user_id = documents.user_id             
+                  AND dag.professional_user_id = current_setting('app.current_user_id')::uuid
+                  AND dag.revoked_at IS NULL
+                  -- MANDATORY: JSONB check using the appropriate scope key
+                  AND dag.access_scope -> 'documents' ? 'read' 
+            )
+        )
+    )
+    -- Write isolation remains for the primary user only
+    WITH CHECK (user_id = current_setting('app.current_user_id')::uuid); 
+
+ALTER TABLE documents FORCE ROW LEVEL SECURITY;
 
 
 -- =========================================================================
@@ -172,14 +204,35 @@ CREATE TABLE IF NOT EXISTS health_metrics (
     created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- ------------------------------
--- RLS Policy on health_metrics
--- ------------------------------
+-- ----------------------------------------------------
+-- RLS Policy on health_metrics (DUAL-MODE ACCESS IMPLEMENTED)
+-- ----------------------------------------------------
 ALTER TABLE health_metrics ENABLE ROW LEVEL SECURITY;
-CREATE POLICY user_isolation_health_metrics ON health_metrics
-    USING (user_id = get_current_user_id())
-    WITH CHECK (user_id = get_current_user_id());
+DROP POLICY IF EXISTS user_isolation_health_metrics ON health_metrics;
 
+CREATE POLICY user_isolation_health_metrics
+    ON health_metrics
+    USING (
+        -- Condition 1: Primary Owner Isolation
+        (user_id = current_setting('app.current_user_id')::uuid) 
+        OR
+        (
+            -- Condition 2: Delegated Access (Grantee must be active and scoped)
+            EXISTS (
+                SELECT 1
+                FROM data_access_grants dag
+                WHERE dag.primary_user_id = health_metrics.user_id              
+                  AND dag.professional_user_id = current_setting('app.current_user_id')::uuid
+                  AND dag.revoked_at IS NULL
+                  -- MANDATORY: Granular scope check for Health Metrics
+                  AND dag.access_scope -> 'health_metrics' ? 'read' 
+            )
+        )
+    )
+    -- Write Isolation: Only Primary Owner can modify/insert
+    WITH CHECK (user_id = current_setting('app.current_user_id')::uuid);
+
+ALTER TABLE health_metrics FORCE ROW LEVEL SECURITY;
 
 -- =========================================================================
 -- 6. VECTOR STORAGE (Digital Memory - Supports CULTIVATE retrieval)
@@ -247,15 +300,26 @@ CREATE TABLE IF NOT EXISTS data_access_grants (
 -- 2. current_user_id is in data_access_grants AND the grant is NOT revoked AND the access_scope 
 --    permits the data type being queried.
 
--- ---------------------------------
--- RLS Policy on user_preferences (CRITICAL)
--- ---------------------------------
-ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
-CREATE POLICY user_isolation_preferences ON user_preferences
-    USING (user_id = get_current_user_id())
-    WITH CHECK (user_id = get_current_user_id());
+-- --------------------------------- 
+-- RLS Policy on user_preferences (PRIMARY ISOLATION ONLY) 
+-- --------------------------------- 
+ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY; 
+DROP POLICY IF EXISTS user_isolation_preferences ON user_preferences; 
+CREATE POLICY user_isolation_preferences ON user_preferences 
+-- CRITICAL FIX: Use the project's standard RLS context setting 
+    USING (user_id = current_setting('app.current_user_id')::uuid) 
+    WITH CHECK (user_id = current_setting('app.current_user_id')::uuid); 
+        
+ALTER TABLE user_preferences FORCE ROW LEVEL SECURITY;
 
 -- Index for performance on the primary access column (moved to section 12)
+
+ALTER TABLE data_access_grants ENABLE ROW LEVEL SECURITY; 
+CREATE POLICY user_isolation_data_access_grants ON data_access_grants 
+    USING (primary_user_id = current_setting('app.current_user_id')::uuid) 
+    WITH CHECK (primary_user_id = current_setting('app.current_user_id')::uuid); 
+    
+ALTER TABLE data_access_grants FORCE ROW LEVEL SECURITY;
 
 
 -- =========================================================================
@@ -521,6 +585,62 @@ ON CONFLICT (question_text) DO NOTHING,
 ON CONFLICT (question_text) DO NOTHING,
 ('On a scale of 1 to 10 (10 being fully aligned), how aligned do you feel with your future self today?', 'CULTIVATE', 'integer 1-10', 3)
 ON CONFLICT (question_text) DO NOTHING;
+
+-- =========================================================================
+-- 15. SYNTHESIS_LOG (The Digital Memory / Cultivate Data Store)
+-- This table stores the results of the Cognitive Engine's analysis, including
+-- the vectors used for Disalignment Frequency Count (DFC) lookups.
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS synthesis_log (
+    synthesis_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    
+    -- The Core Insight: Extracted Limiting Subconscious Theme (e.g., 'Fear of Commitment')
+    theme_title VARCHAR(255) NOT NULL,
+    
+    -- The Vector Representation of the Theme (pgvector required)
+    theme_vector vector(1536) NOT NULL, -- Assuming OpenAI/Cohere 1536 dimension standard
+    
+    -- Summary of the synthesis run (LLM output)
+    synthesis_summary TEXT NOT NULL, 
+    
+    -- Count of related documents/data points used in this synthesis run
+    data_points_analyzed INTEGER NOT NULL DEFAULT 0,
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- MANDATORY RLS ENFORCEMENT for the new table
+ALTER TABLE synthesis_log ENABLE ROW LEVEL SECURITY;
+
+-- ----------------------------------------------------
+-- RLS Policy on synthesis_log (DUAL-MODE ACCESS IMPLEMENTED)
+-- ----------------------------------------------------
+DROP POLICY IF EXISTS user_isolation_synthesis_log ON synthesis_log;
+
+CREATE POLICY user_isolation_synthesis_log
+    ON synthesis_log
+    USING (
+        -- Condition 1: Primary Owner Isolation
+        (user_id = current_setting('app.current_user_id')::uuid) 
+        OR
+        (
+            -- Condition 2: Delegated Access (Grantee must be active and scoped)
+            EXISTS (
+                SELECT 1
+                FROM data_access_grants dag
+                WHERE dag.primary_user_id = synthesis_log.user_id              
+                  AND dag.professional_user_id = current_setting('app.current_user_id')::uuid
+                  AND dag.revoked_at IS NULL
+                  -- MANDATORY: Granular scope check for Synthesis Log
+                  AND dag.access_scope -> 'synthesis_log' ? 'read' 
+            )
+        )
+    )
+    -- Write Isolation: Only Primary Owner can modify/insert
+    WITH CHECK (user_id = current_setting('app.current_user_id')::uuid);
+
+ALTER TABLE synthesis_log FORCE ROW LEVEL SECURITY;
 
 -- =========================================================================
 -- 15. INDEXES FOR PERFORMANCE

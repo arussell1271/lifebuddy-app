@@ -4,6 +4,7 @@ import os
 from contextlib import contextmanager
 from typing import Generator
 from sqlalchemy import create_engine
+from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker, Session
 
 # --- Configuration ---
@@ -28,11 +29,14 @@ def get_rls_session(user_id: str) -> Generator[Session, None, None]:
     """
     db = SessionLocal()
     try:
-        # CRITICAL: Execute the RLS context setting function
-        db.execute(f"SELECT set_config('app.current_user_id', '{user_id}', false);")
-        db.execute("SET search_path TO app, public;") 
+        # CRITICAL: Implement the RLS context setting function
+        # This SQL command is the single most important security line in the Engine.
+        db.execute(
+            text("SELECT set_config('app.current_user_id', :user_id, FALSE)"),
+            {"user_id": str(user_id)}
+        )
+        db.commit() # Commit the SET command before yielding the session
         yield db
-        db.commit() 
     except Exception:
         db.rollback() 
         raise
