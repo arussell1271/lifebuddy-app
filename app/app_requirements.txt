@@ -1,6 +1,7 @@
 # --- App Service (The Body) Requirements ---
 # Focused on web-facing API, authentication, and internal communication.
-# MUST NOT include database or AI heavy dependencies.
+# MUST NOT include database or Cognitive Engine Logic dependencies.
+# The app msut not call the DB directly. All data movements to the DB must go through the Engine API.
 fastapi
 uvicorn[standard]
 pydantic

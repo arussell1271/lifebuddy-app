@@ -15,14 +15,21 @@ RUN apt-get update && apt-get install -y \
 # Set the consistent working directory in the container
 WORKDIR /usr/src/app
 
-# CRITICAL: Copy and install BOTH App and Engine dependencies
-COPY ./app/app_requirements.txt ./app_requirements.txt
-COPY ./engine/engine_requirements.txt ./engine_requirements.txt
-RUN pip install --no-cache-dir -r app_requirements.txt
-RUN pip install --no-cache-dir -r engine_requirements.txt
+# CRITICAL: Copy ONLY Engine dependencies and assume common data-layer libs are included.
+# DELETE app_requirements.txt installation to adhere to PoLP.
+COPY ./engine/engine_requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# CRITICAL: Copy BOTH core application code (app/) AND engine code (engine/)
-COPY ./app /usr/src/app/app
+# NOTE: If the Engine needs a small, non-redundant set of dependencies 
+# from the App (e.g., for common utilities), that list must be moved to 
+# a new, explicit 'shared_requirements.txt' and installed here instead.
+# For now, we assume engine_requirements.txt is the superset.
+
+# CRITICAL: Copy ONLY required shared code and the core engine code.
+# Assuming shared models/schemas are located under app/models and app/schemas
+# If not, the structure must be refactored to a shared/ directory, but based on the current context, we assume the Engine needs models from app/.
+COPY ./app/models /usr/src/app/app/models
+COPY ./app/schemas /usr/src/app/app/schemas
 COPY ./engine /usr/src/app/engine
 
 # --------------------------------------------------------------------------------------
