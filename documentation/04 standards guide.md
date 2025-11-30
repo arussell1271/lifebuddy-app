@@ -105,6 +105,7 @@ The principle of **Minimal Necessary Data** mandates strict retention limits for
 | Component | Standard | Rationale |
 | :--- | :--- | :--- |
 | **User Cognitive State** (`user_cognitive_state` table) | **4-Day Rolling Window (Retention: 4 Days)** | Required data for short-term contextual synthesis (e.g., assessing mindset change). Retaining 4 days provides a safe buffer while minimizing storage. |
+| **Pre-Synthesis Answers** (`pre_synthesis_answers` table) | **4-Day Rolling Window (Retention: 4 Days)** | Data is only needed temporarily to determine the daily check status for synthesis. Purging aligns with `user_cognitive_state` and the cron job logic. |
 | **Enforcement Method** | **Scheduled Database Maintenance** | Enforced by a nightly, privileged `cron` job that executes a stored procedure (e.g., `db_maintenance_purge_old_state()`). |
 
 ### 5. Documentation Scoping Standard

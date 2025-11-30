@@ -62,7 +62,27 @@
 | **Constraint Adherence** | App immediately queues the request for the **Engine Service** via the message queue (Redis/RabbitMQ). |
 | **Success Response (202 Accepted)**| `detail`: "Password reset request accepted and queued." |
 
-### 2.2 Client-Side Implementation Details
+### 2.2 API Contracts (Account Recovery - App Service - `app/api/v1/auth`)
+
+The following synchronous contracts are required to support the "Forgot Password" and "Forgot Username" flows as per the Functional Guide. These endpoints must perform rate-limiting.
+
+| Functional Goal | HTTP Method | Endpoint (App Service) | Request Payload (Body) | Response Data (Status Code) |
+| :--- | :--- | :--- | :--- | :--- |
+| **Forgot Password** | `POST` | `/forgot-password` | `{ "email": "user@example.com" }` | `{ "message": "Recovery instructions sent." }` (202 Accepted) |
+| **Password Reset** | `POST` | `/reset-password` | `{ "token": "...", "new_password": "..." }` | `{ "message": "Password successfully reset." }` (200 OK) |
+| **Forgot Username** | `POST` | `/forgot-username` | `{ "email": "user@example.com" }` | `{ "message": "Username sent via email." }` (202 Accepted) |
+
+### 2.3 API Contracts (App Service - `app/api/v1/synthesis`)
+
+⚠️ ARCHITECTURAL RULE: These endpoints must strictly adhere to the Asynchronous Pattern (App MUST NOT wait for Engine).
+
+| Functional Goal | HTTP Method | App Service Path (FastAPI) | Response Status | Constraint Adherence |
+| :--- | :--- | :--- | :--- | :--- |
+| **Initiate Synthesis** | `POST` | `/api/v1/synthesis/job` | `202 Accepted` | **Asynchronous:** Places job on Redis Queue (`rq`) and returns a `job_id`. |
+| **Poll Status** | `GET` | `/api/v1/synthesis/job/{job_id}` | `200 OK` | **Polling:** Queries Redis Queue for `job_id` status (`PENDING`, `COMPLETE`, `FAILED`). |
+| **Retrieve Synthesis** | `GET` | `/api/v1/synthesis/{synthesis_id}` | `200 OK` | **RLS-Protected:** Retrieves final result from `synthesis_log` table using `get_db_rls_session`. |
+
+### 2.4 Client-Side Implementation Details
 
 | Component | Responsibility | Technical Notes |
 | :--- | :--- | :--- |
@@ -71,14 +91,23 @@
 
 ## III. Feature: User Preferences and Cognitive Configuration
 
-### 3.1 Database Schema Additions
+### 3.1 Synchronous Data Retrieval Endpoints
 
-A new table, `user_preferences`, is required to store user-specific cognitive configuration, secured by RLS.
+These endpoints are simple, synchronous proxies from the App Service to the Engine Service. The App Service path is: `/api/v1/engine/{user_id}/{engine_route}`) for all synchronous user data operations.
 
-| Table | RLS Policy | Columns and Constraints |
-| :--- | :--- | :--- |
-| `user_preferences` | **Mandatory** using `user_id = get_current_user_id()`. | `user_id` (UUID, PK, FK to `users`); `advisor_name_spiritual` (VARCHAR); `spiritual_mode` (VARCHAR, CHECK IN 'TAROT', 'GOD', 'NEUTRAL'); `spiritual_tone` (VARCHAR, CHECK IN 'GUIDANCE', 'MENTOR', 'EXPERT'); `health_data_ingestion` (VARCHAR, CHECK IN 'APPLE_HEALTH', 'DIRECT_DB'). |
-| `cognitive_definitions` | **NONE** (Global Data) | `definition_key` (VARCHAR, PK); `advisor_role` (VARCHAR, e.g., 'CULTIVATE'); `system_prompt_template` (TEXT); `version` (INT). *Note: This table is read-only for the Engine; it is managed by an Administration service, not the App or Engine.* |
+This table defines the required `engine_route` values for the Engine Service.
+
+| Functional Goal | HTTP Method | Client App Path/Action | Required `engine_route` Parameter | Engine Logic Performed |
+| :--- | :--- | :--- | :--- | :--- |
+| **User Identity** | `GET` | Retrieve User Profile/Stats | `get_user_profile` | Fetches data from `users` and `cognitive_efficacy_metrics`. |
+| **User Preferences** | **GET** | Retrieve user preferences | `get_user_preferences` | Fetches data from `user_preferences`. |
+| **User Preferences** | `PUT` | Update user preferences | `update_user_preferences` | Updates row in `user_preferences`. |
+| **Action Items** | `GET` | Fetch all pending items | `get_all_action_items` | Fetches data from `actionable_items` where `is_complete = FALSE`. |
+| **Action Items** | `POST` | Create a new action item | `create_action_item` | Inserts a new row into `actionable_items`. |
+| **Action Items** | `PUT` | Mark item as complete | `complete_action_item` | Updates `actionable_items.is_complete = TRUE` and logs adherence. |
+| **Daily Check** | `GET` | Get status of daily check | `get_daily_check_status` | Queries `pre_synthesis_answers` to determine if all mandatory questions are `COMPLETE`. |
+| **Daily Check** | `POST` | Submit a daily answer | `submit_daily_answer` | Inserts an answer into `pre_synthesis_answers` and performs implicit check logic. |
+| **Documents** | `GET` | Fetch recent dreams/journals | `get_recent_documents` | Retrieves up to the last 5 `DREAM` or `JOURNAL` documents. |
 
 ### 3.2 API Contracts (App Service - `app/api/v1/user-preferences`)
 
