@@ -106,7 +106,7 @@ This table defines the required `engine_route` values for the Engine Service.
 | **Action Items** | `POST` | Create a new action item | `create_action_item` | Inserts a new row into `actionable_items`. |
 | **Action Items** | `PUT` | Mark item as complete | `complete_action_item` | Updates `actionable_items.is_complete = TRUE` and logs adherence. |
 | **Daily Check** | `GET` | Get status of daily check | `get_daily_check_status` | Queries `pre_synthesis_answers` to determine if all mandatory questions are `COMPLETE`. |
-| **Daily Check** | `POST` | Submit a daily answer | `submit_daily_answer` | Inserts an answer into `pre_synthesis_answers` and performs implicit check logic. |
+| **Daily Check** | `POST` | Submit a daily answer | `submit_daily_answer_proxy` | **Engine (Synchronous):** Inserts row into `pre_synthesis_answers`. **Engine (Asynchronous):** Immediately enqueues implicit check job and returns `job_id`. |
 | **Documents** | `GET` | Fetch recent dreams/journals | `get_recent_documents` | Retrieves up to the last 5 `DREAM` or `JOURNAL` documents. |
 
 ### 3.2 API Contracts (App Service - `app/api/v1/user-preferences`)
