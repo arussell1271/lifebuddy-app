@@ -6,6 +6,7 @@ import uuid
 from sqlalchemy.orm import Session
 from rq import Queue
 import redis # Used to get the Redis connection directly in the Engine
+import os
 
 # RLS DB Session
 from engine.core.database import get_rls_session
