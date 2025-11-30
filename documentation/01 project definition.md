@@ -22,7 +22,7 @@ To develop a scalable web and mobile application that implements the **Cultivate
 | Category | Description |
 | :--- | :--- |
 | **Primary Users** | Individuals committed to sustained behavioral change and health improvement. |
-| **Secondary Users** | Linked Medical Professionals (e.g., "Dr. FRANK"), **Dieticians, Coaches, and Research Entities (access is contingent on explicit, revokable user consent).** |
+| **Secondary Users** | Linked Medical Professionals (e.g., "Dr. FRANK"), Dieticians, Coaches, and Research Entities. Access is contingent on **explicit, revocable, and granularly scoped** user consent. |
 
 ### III. Core Philosophical Foundation: Cultivate → Execute → Contribute
 

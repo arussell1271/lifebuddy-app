@@ -225,11 +225,37 @@ These contracts manage the core "Execute" phase deliverables (Actionable Items) 
 | **Request Body** | `{"success": true, "notes": "Successfully completed item before 10AM."}` |
 | **Response Body (Example)** | `{"success": true, "message": "Adherence logged. Item status updated to COMPLETED."}` |
 
-## IV. Feature: Professional Collaboration & Secure Sharing
+## IV. Feature: Delegated Access Management
+
+This feature allows the Primary User (via the App Service) to grant and revoke access to Secondary Users (Professionals) by managing entries in the `data_access_grants` table.
+
+### 4.1 API Contracts (App Service - `app/api/v1/grants`)
+
+| Functional Goal | HTTP Method | API Path | Payload / Response | App Logic / RLS Context |
+| :--- | :--- | :--- | :--- | :--- |
+| **List Grants** | `GET` | `/api/v1/grants` | `200` with list of current `data_access_grants` objects. | Synchronous DB read. The RLS policy on the `data_access_grants` table ensures only the authenticated Primary User can view their own grants. |
+| **Create Grant** | `POST` | `/api/v1/grants` | **Payload:** `professional_user_id: UUID`, `access_scope: JSONB`. | Synchronous DB write. Inserts a new row into `data_access_grants`. The `primary_user_id` is derived from the authenticated Primary User's JWT. |
+| **Revoke Grant** | `DELETE` | `/api/v1/grants/{professional_user_id}` | `204` No Content on success. | Synchronous DB write. Finds the grant where `professional_user_id` matches the path and sets `revoked_at = CURRENT_TIMESTAMP`. |
+
+### 4.2. Update Section: Proxied API Flow for Secondary Users
+
+Insert this section into the document, likely after the main table of proxied routes.
+
+### 4.2 Proxied API Flow for Secondary Users (CRITICAL RLS ENFORCEMENT)
+
+The App Service MUST adhere to the following when proxying requests for **Secondary Users** (Professionals):
+
+* **Authentication:** The Secondary User's JWT is validated.
+* **Context Extraction:** The Secondary User's ID is extracted from the JWT's `sub` claim.
+* **Proxy Header:** The App Service passes the **Secondary User's ID** in the `X-User-ID` RLS context header to the Engine.
+* **Engine Trust:** The Engine receives the request, and its security layer (`get_rls_session`) sets the RLS context variable `app.current_user_id` to the Secondary User's ID.
+* **DB Authorization:** The **Dual-Mode RLS Policy** in the database evaluates the access: if an active, scoped grant exists, the query succeeds; otherwise, it returns zero rows, maintaining security isolation.
+
+## V. Feature: Professional Collaboration & Secure Sharing
 
 The App Service mediates all consent and access management (via the `data_access_grants` table) to ensure RLS is correctly enforced by the database.
 
-### 4.0 Client-Side Role-Based Rendering (Vue/Pinia)
+### 5.0 Client-Side Role-Based Rendering (Vue/Pinia)
 
 The client application must implement a state check on successful authentication to route the user based on their assigned role.
 
@@ -238,11 +264,11 @@ The client application must implement a state check on successful authentication
 | **Client State Variable** | `Pinia.user_store.user_role: string` (`PRIMARY_USER` or `SECONDARY_USER`) | Determines UI context for authorization and rendering. |
 | **Secondary User Route** | Navigate to `/professional/portal`. | Dedicated Portal Access. |
 
-### 4.1 API Contracts (App Service - `app/api/v1/data-grants`) - Primary User Actions
+### 5.1 API Contracts (App Service - `app/api/v1/data-grants`) - Primary User Actions
 
 ... (Keep existing `POST /data-grants/grant` and `POST /data-grants/revoke/{professional_user_id}` as is) ...
 
-#### 4.1.A Client List Retrieval
+#### 5.1.A Client List Retrieval
 
 | Property | Value |
 | :--- | :--- |
@@ -252,7 +278,7 @@ The client application must implement a state check on successful authentication
 | **Purpose** | Retrieves a list of active client UUIDs consented to this Professional, filtered by an active `data_access_grants` record. |
 | **Response Body (Example)** | `[{"client_user_id": UUID, "client_username": "client.user", "last_report_date": "2024-10-01"}]` |
 
-### 4.2 API Contracts (Engine Service Proxy - CRITICAL ASYNCHRONOUS CORRECTION)
+### 5.2 API Contracts (Engine Service Proxy - CRITICAL ASYNCHRONOUS CORRECTION)
 
 This endpoint **MUST** adhere to the **Asynchronous Processing Flow** constraint. The App Service must **NOT** wait for the Engine's synthesis.
 
@@ -266,7 +292,7 @@ This endpoint **MUST** adhere to the **Asynchronous Processing Flow** constraint
 | **Request Payload (CRITICAL ADDITION)** | **MUST** include the `daily_check_answers` object for the client user being queried. |
 | **Success Response (CRITICAL: 202 Accepted)**| `{"status": "Report processing initiated", "job_id": UUID}` |
 
-### 4.3 API Contracts (Engine Service RLS Proxy - CRITICAL SYNCHRONOUS FLOW)
+### 5.3 API Contracts (Engine Service RLS Proxy - CRITICAL SYNCHRONOUS FLOW)
 
 The App Service MUST use this endpoint for all operations that require fetching or modifying user-specific data. This is the **only acceptable synchronous data access** call to the Engine, as it is a low-latency proxy to enable RLS.
 
@@ -279,7 +305,7 @@ The App Service MUST use this endpoint for all operations that require fetching 
 | **Purpose** | Proxies the request to the Engine, allowing the Engine to safely set the RLS context (`SET app.current_user_id = '{user_id}';`) before executing the requested business logic (`engine_route`). |
 | **Example App Call** | App calls Engine: `POST cognitive-engine:8001/api/v1/data-proxy/123e4567-e89b.../health-metrics` |
 
-## 4.4 API Route Mapping: Synchronous Data Proxy Endpoints (RLS MANDATORY)
+## 5.4 API Route Mapping: Synchronous Data Proxy Endpoints (RLS MANDATORY)
 
 The App Service MUST use the RLS Proxy pattern (`POST /api/v1/data-proxy/{user_id}/{engine_route}`) for all synchronous user data operations.
 

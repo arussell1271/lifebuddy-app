@@ -1,6 +1,6 @@
 # 04 Standards Guide.md
 
-## Development Standards and Architecture (Version 2.0)
+## Development Standards and Architecture (Version 2.1 - RLS Dual-Mode)
 
 ### Purpose
 
@@ -71,19 +71,20 @@ All logic must adhere to the **Principle of Least Privilege (PoLP)** enforced by
 
 ### 4. Data Integrity and Privacy
 
-#### A. Row-Level Security (RLS) Mandate
+#### A. RLS Enforcement Standard (Dual-Mode Access)
 
-**CRITICAL MANDATE: All tables containing user-specific data (e.g., `documents`, `health_metrics`, `adherence_log`) MUST have RLS policies enabled, ensuring that data is only visible under the following two conditions:**
+**CRITICAL MANDATE:** All RLS-protected tables **MUST** adhere to the **Dual-Mode RLS Policy** to support secondary user access while maintaining strict isolation.
 
-1. **Primary User Access:** The `current_user_id` context equals the `row.user_id`. (The default and perpetual rule).
-2. **Secondary User Access (NEW):** The `current_user_id` must be found as a `professional_user_id` in the **`data_access_grants`** table, and the corresponding grant must be **active (`revoked_at` IS NULL)** and its **`access_scope` JSONB field must permit the viewing of the specific data type being queried.**
+The policy for all data access (SELECT) must be implemented using the following logical OR:
 
-This two-factor RLS check is the single, non-negotiable security layer for all collaborative features.
+1. **Primary Isolation (Default):** The current user ID (`current_setting('app.current_user_id')`) matches the `user_id` column of the row.
+2. **Delegated Access (Conditional):** The RLS policy **MUST** check that an active grant exists in the **`data_access_grants`** table where the current user ID is the `professional_user_id`, AND the grant's **`access_scope` JSONB field MUST permit the viewing of the specific data type being queried.**
 
-#### B. Logic Location
+**MANDATORY WRITE ISOLATION:** The `WITH CHECK` clause (for INSERT, UPDATE, DELETE) **MUST** strictly enforce primary isolation (`user_id = current_setting('app.current_user_id')`). Secondary users are **only granted read access**.
 
-* **Core Business Logic:** All non-security-critical logic remains in the Python **Service Layer** of The Body or The Brain.
-* **Security Logic:** All user isolation logic (RLS policies) **MUST** reside in the PostgreSQL layer.
+#### B. Engine RLS Use
+
+The Engine Service **MUST** use the low-privilege **`cognitive_engine_rls`** role and the `get_rls_session(user_id)` context manager for **ALL** live user data operations. It remains the Engine's primary security mandate to trust the context provided by the App Service's authentication layer.
 
 #### C. Encryption Strategy
 

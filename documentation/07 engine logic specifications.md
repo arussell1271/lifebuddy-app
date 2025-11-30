@@ -58,7 +58,16 @@ The Engine must convert the **Cultivate Synthesis** into a concrete **Holistic A
 3. **Prompt Instruction (Simplified):** "Generate one concise, behavioral Actionable Item to address the worst health metric (e.g., 'Go to bed 30 minutes earlier'). The item type MUST be 'MANDATED'."
 4. **Output:** The generated Item is saved to the `actionable_items` table with `item_type='MANDATED'` and `status='PENDING'`.
 
-## IV. Engine Core Service Mandates 🛡️
+## IV. RLS Enforcement and Access Delegation (CRITICAL MANDATE)
+
+The Cognitive Engine operates with **zero knowledge** of a user's role (Primary Owner or Secondary Grantee). Its security role is limited to context setting, not authorization.
+
+| Property | Value | Rationale |
+| :--- | :--- | :--- |
+| **Security Mechanism** | **Passive Context Enforcement** | The Engine **MUST NOT** implement logic to check `data_access_grants`. It only passes the `X-User-ID` from the App into the `get_rls_session` context manager. |
+| **Authorization Source** | **Database Kernel** | All delegated access authorization, including the **granular scope check**, is handled exclusively by the Dual-Mode RLS Policy in PostgreSQL. This maintains the security boundary. |
+
+## V. Engine Core Service Mandates 🛡️
 
 ### A. RLS Context Initialization (CRITICAL SECURITY STEP)
 
@@ -72,7 +81,7 @@ The Engine Service MUST ensure that for every synchronous API call received via 
 
 This process ensures all data access is strictly limited by the database's RLS policy to the user specified in the session context, maintaining the **PoLP** standard.
 
-## V. Asynchronous Job Polling Contract (CRITICAL) ⏱️
+## VI. Asynchronous Job Polling Contract (CRITICAL) ⏱️
 
 For all asynchronous jobs (e.g., Synthesis, Report Generation) initiated by the App Service through the `message-broker`, the client/App must poll this endpoint for status updates and results.
 
@@ -87,7 +96,7 @@ For all asynchronous jobs (e.g., Synthesis, Report Generation) initiated by the 
 | **Success Response (Pending)** | `200 OK` / `{"status": "PROCESSING", "progress": 55, "message": "Analyzing dream documents..."}` |
 | **Success Response (Complete)** | `200 OK` / `{"status": "COMPLETE", "result_uri": "/api/v1/synthesis-report/{job_id}", "message": "Report is ready."}` |
 
-### V.1. Client-Side Polling Mitigation Strategy (MANDATORY) ⚠️
+### VI.1. Client-Side Polling Mitigation Strategy (MANDATORY) ⚠️
 
 To prevent network strain and denial-of-service risks due to excessive polling, the client (Vue 3/Pinia) **MUST** implement an **Exponential Backoff** strategy for polling the job status endpoint.
 
@@ -104,7 +113,7 @@ To prevent network strain and denial-of-service risks due to excessive polling, 
 
 ---
 
-### VI. System Maintenance Logic (Nightly Cron Job)
+### VII. System Maintenance Logic (Nightly Cron Job)
 
 The nightly `db_maintenance_cron` service enforces the **4-Day Rolling Window** data retention standard (as per `04 standards guide.md`) by executing a single, privileged stored procedure on the database.
 
