@@ -192,8 +192,8 @@ services:
     image: ollama/ollama:latest
     # CRITICAL ADDITION: Pull the necessary model on startup for the engine to function.
     # The Engine is assumed to be configured to use the 'mistral' model.
-    command: >
-      /bin/sh -c "ollama serve & sleep 5 && ollama pull mistral && wait"
+    entrypoint: /bin/sh -c
+    command: "ollama serve & sleep 5 && ollama pull mistral && wait"
     volumes:
       - ollama_models:/root/.ollama
     networks:
