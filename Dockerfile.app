@@ -1,7 +1,6 @@
 # Dockerfile.app (The Body - Public Facing)
-# CRITICAL: ONLY includes dependencies and code for the App Service (e.g., no Engine code).
-
-# Stage 1: builder (Used for compilation and dependency installation)
+# CRITICAL: ONLY includes dependencies and code for the App Service (e.g., no Engine code). 
+# Stage 1: builder (Used for compilation and dependency installation) [cite: 2]
 FROM python:3.11-slim-bullseye AS builder
 
 # Install necessary system dependencies for building native Python packages (e.g., psycopg2)
@@ -25,7 +24,7 @@ COPY ./app /usr/src/app/app
 
 # --------------------------------------------------------------------------------------
 
-# Stage 2: runner (The final, minimal image for production/runtime)
+# Stage 2: runner (The final, minimal image for production/runtime) [cite: 3]
 FROM python:3.11-slim-bullseye AS runner
 
 # Install only essential runtime dependencies (libpq5 is the runtime dependency for libpq-dev)
@@ -36,7 +35,7 @@ RUN apt-get update && apt-get install -y \
 # Set the consistent working directory
 WORKDIR /usr/src/app
 
-# Copy the installed Python dependencies from the builder stage
+# Copy the installed Python dependencies from the builder stage (libraries)
 COPY --from=builder /usr/local/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
 
 # CRITICAL FIX: Copy the executables (like 'gunicorn', 'uvicorn') from the builder stage
