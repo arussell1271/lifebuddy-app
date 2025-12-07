@@ -39,6 +39,9 @@ WORKDIR /usr/src/app
 # Copy the installed Python dependencies from the builder stage
 COPY --from=builder /usr/local/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
 
+# CRITICAL FIX: Copy the executables (like 'gunicorn', 'uvicorn') from the builder stage
+COPY --from=builder /usr/local/bin/ /usr/local/bin/
+
 # Copy the application code and entrypoints
 COPY --from=builder /usr/src/app/app /usr/src/app/app
 
