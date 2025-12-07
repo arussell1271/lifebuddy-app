@@ -89,8 +89,8 @@ services:
     restart: always
 
   # 5. DEVELOPMENT COGNITIVE ENGINE (Brain API - LLM & DB Logic)
-  dev-engine:
-    # Service Name: dev-engine
+  dev_engine:
+    # Service Name: dev_engine
     container_name: dev_engine
     build:
       context: .
