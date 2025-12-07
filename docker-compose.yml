@@ -21,7 +21,7 @@ volumes:
 # --- Services Definitions ---
 services:
 
- # 1. DEVELOPMENT DATABASE (Postgres + pgvector)
+  # 1. DEVELOPMENT DATABASE (Postgres + pgvector)
   dev_db:
     # Service Name: dev_db
     container_name: dev_db
@@ -38,7 +38,7 @@ services:
     profiles: [ "dev" ]
     restart: always
 
- # 2. PRODUCTION DATABASE (Postgres + pgvector)
+  # 2. PRODUCTION DATABASE (Postgres + pgvector)
   prod_db:
     # Service Name: prod_db
     container_name: prod_db
@@ -54,7 +54,7 @@ services:
     restart: always
     
   # 3.REDIS (Message Broker)
- # FIXED: Explicitly named service 'message-broker' to match documentation.
+  # FIXED: Explicitly named service 'message-broker' to match documentation.
   message-broker:
     container_name: message-broker
     image: redis:latest
@@ -67,9 +67,9 @@ services:
       timeout: 5s
       retries: 3
 
- # 4. DEVELOPMENT APPLICATION SERVICE (The Body - Public API)
-  app:
-    # Service Name: app
+  # 4. DEVELOPMENT APPLICATION SERVICE (The Body - Public API)
+  dev_app:
+    # Service Name: dev_app
     container_name: dev_app
     build:
       context: .
@@ -80,18 +80,17 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - prod_db
       - message-broker
-      - prod_engine
+      - dev_engine
     networks:
       - frontend-network # User access
       - core-network     # Database/Engine access
     profiles: [ "dev" ]
     restart: always
 
- # 5. DEVELOPMENT COGNITIVE ENGINE (Brain API - LLM & DB Logic)
-  cognitive-engine:
-    # Service Name: cognitive-engine
+  # 5. DEVELOPMENT COGNITIVE ENGINE (Brain API - LLM & DB Logic)
+  dev-engine:
+    # Service Name: dev-engine
     container_name: dev_engine
     build:
       context: .
@@ -108,7 +107,7 @@ services:
     profiles: [ "dev" ]
     restart: always
     
- # 6. PRODUCTION APPLICATION SERVICE (The Body)
+  # 6. PRODUCTION APPLICATION SERVICE (The Body)
   prod_app:
     # Service Name: prod_app
     container_name: prod_app
@@ -129,7 +128,7 @@ services:
     profiles: [ "prod" ]
     restart: always
 
- # 7. PRODUCTION COGNITIVE ENGINE (Brain API)
+  # 7. PRODUCTION COGNITIVE ENGINE (Brain API)
   prod_engine:
     # Service Name: prod_engine
     container_name: prod_engine
@@ -148,7 +147,7 @@ services:
     profiles: [ "prod" ]
     restart: always
 
-# 8. MAINTENANCE SERVICE (NEW - For Privileged Cron Jobs) 🚨
+  # 8. MAINTENANCE SERVICE (NEW - For Privileged Cron Jobs) 🚨
   # Mandated by the Data Retention Standard (04 standards guide.md)
   maintenance-service:
     container_name: maintenance-service
@@ -187,7 +186,7 @@ services:
       - dev
     restart: unless-stopped
 
-# 10. OLLAMA (Local LLM Engine)
+  # 10. OLLAMA (Local LLM Engine)
   ollama:
     container_name: ollama
     image: ollama/ollama:latest

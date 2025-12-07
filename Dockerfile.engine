@@ -25,11 +25,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # a new, explicit 'shared_requirements.txt' and installed here instead.
 # For now, we assume engine_requirements.txt is the superset.
 
-# CRITICAL: Copy ONLY required shared code and the core engine code.
-# Assuming shared models/schemas are located under app/models and app/schemas
-# If not, the structure must be refactored to a shared/ directory, but based on the current context, we assume the Engine needs models from app/.
-COPY ./app/models /usr/src/app/app/models
-COPY ./app/schemas /usr/src/app/app/schemas
+# CRITICAL: Copy only the SHARED and ENGINE code
+COPY ./shared /usr/src/app/shared
 COPY ./engine /usr/src/app/engine
 
 # --------------------------------------------------------------------------------------

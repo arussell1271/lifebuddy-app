@@ -19,7 +19,8 @@ WORKDIR /usr/src/app
 COPY ./app/app_requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# CRITICAL: Copy ONLY the core application code
+# CRITICAL: Copy only the SHARED and APP code
+COPY ./shared /usr/src/app/shared
 COPY ./app /usr/src/app/app
 
 # --------------------------------------------------------------------------------------
