@@ -10,7 +10,7 @@ set "PS_SCRIPT_PATH=scripts\DockerManager.ps1"
 :MENU
 cls
 echo =========================================================
-echo  🌐 Docker Management Menu (Root: %PROJECT_ROOT%)
+echo    Docker Management Menu
 echo =========================================================
 echo.
 echo    (Root: %PROJECT_ROOT%)
