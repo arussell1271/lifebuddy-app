@@ -1,91 +1,115 @@
-# DockerManager.ps1
+# docker_manager.ps1
 
-## ⚙️ Core Functions (Modified to accept -ProjectRoot)
+## 🚀 Execution Function - Entry Point
+param(
+    [Parameter(Mandatory = $true)]
+    [ValidateSet("rebuild", "stop", "remove_all", "remove_project")]
+    [string]$Action,
+    
+    [Parameter(Mandatory = $true)]
+    [string]$ProjectRoot, # Path to the directory containing docker-compose.yml
 
-# Helper function to execute docker-compose commands
+    # New parameter to accept an optional environment file path
+    [string]$EnvFile 
+)
+
+# -----------------------------------------------------------------------------
+## ⚙️ Helper Functions
+# -----------------------------------------------------------------------------
+
+# Helper function to execute docker-compose commands with the specified project root
 function Invoke-DockerCompose {
     param(
         [string]$Command,
-        [string]$ProjectRoot
+        [string]$ProjectRoot,
+        [string]$EnvFile
     )
-    # The -f flag tells docker-compose where the file is.
-    # If the file is named docker-compose.yml, -f is technically not needed,
-    # but the -p (project-name) and --project-directory are the most robust ways
-    # to control the execution context from another location.
     
-    # Using '--project-directory' is the simplest way to specify the context.
-    docker-compose --project-directory $ProjectRoot $Command
+    # 1. Start building the argument list for the native 'docker' command
+    # This array method correctly handles paths with spaces (e.g., 'VS Code')
+    $dockerArgs = @("compose", "--project-directory", $ProjectRoot)
+
+    # 2. Add the optional --env-file argument if a file was provided
+    if (-not [string]::IsNullOrWhiteSpace($EnvFile)) {
+        $dockerArgs += @("--env-file", $EnvFile)
+    }
     
+    # 3. Add the specific command and its parameters
+    # Splitting the command string ensures that arguments (like 'down' and '--volumes') are separate array elements
+    $commandArray = $Command -split ' ' | Where-Object { $_ }
+    $dockerArgs += $commandArray
+    
+    # Execute the command by passing the argument array to the native 'docker' executable.
+    $output = docker @dockerArgs
+    
+    # Check the $LASTEXITCODE which holds the exit code of the last executed native command
     if ($LASTEXITCODE -ne 0) {
         Write-Host "ERROR: Docker Compose command failed: $Command" -ForegroundColor Red
-        return $false
+        # Return $null on failure
+        return $null
     }
-    return $true
+    
+    return $output
 }
+
+# -----------------------------------------------------------------------------
+## ⚙️ Core Management Functions
+# -----------------------------------------------------------------------------
 
 # 1. Start Up/Rebuild
 function Start-DockerServices {
-    param([string]$ProjectRoot)
+    param([string]$ProjectRoot, [string]$EnvFile)
     Write-Host "Starting/Rebuilding Docker services in $ProjectRoot..." -ForegroundColor Green
-    Invoke-DockerCompose "up --build -d" -ProjectRoot $ProjectRoot
+    Invoke-DockerCompose "up --build -d" -ProjectRoot $ProjectRoot -EnvFile $EnvFile
 }
 
 # 2. Shut Down
 function Stop-DockerServices {
     param([string]$ProjectRoot)
     Write-Host "Stopping and removing Docker services in $ProjectRoot..." -ForegroundColor Yellow
-    Invoke-DockerCompose "down" -ProjectRoot $ProjectRoot
+    # 'down' stops and removes containers, networks, and default volumes
+    Invoke-DockerCompose "down" -ProjectRoot $ProjectRoot -EnvFile $EnvFile
 }
 
-# 3. Remove / Delete All (No change needed, as these are system-wide commands)
+# 3. Remove / Delete All (System-wide)
 function Remove-AllDockerAssets {
-    # ... (contents remain the same as the original script) ...
-    <#
-        .SYNOPSIS
-        Stops all running containers and forcibly removes all containers,
-        volumes, and images on the system.
-        .WARNING
-        This command is destructive and removes ALL non-running containers,
-        ALL volumes, and ALL images (even those not related to your project).
-    #>
-    Write-Host "--- WARNING: EXTREME CLEANUP MODE INITIATED ---" -ForegroundColor Red
+    Write-Host "--- WARNING: EXTREME CLEANUP MODE INITIATED (System-wide) ---" -ForegroundColor Red
+    
     Write-Host "Stopping all running containers..." -ForegroundColor Red
     docker stop $(docker ps -aq) 2>$null 
 
     Write-Host "Removing all containers..." -ForegroundColor Red
     docker rm $(docker ps -aq) -f 2>$null 
 
-    Write-Host "Removing all volumes (dangling and in-use)..." -ForegroundColor Red
+    Write-Host "Removing all unused volumes..." -ForegroundColor Red
     docker volume prune -f
 
-    Write-Host "Removing all images (including those used by other projects)..." -ForegroundColor Red
+    Write-Host "Removing all unused images..." -ForegroundColor Red
+    # -a removes all images without at least one container associated with them
     docker image prune -a -f
 
     Write-Host "Docker system assets (containers, volumes, images) cleaned." -ForegroundColor Green
 }
 
-# 4. Remove / Delete Project Assets (Modified to use ProjectRoot)
+# 4. Remove / Delete Project Assets (Project-specific)
 function Remove-ProjectDockerAssets {
-    <#
-        .SYNOPSIS
-        Stops and removes containers, networks, and volumes defined in the
-        docker-compose.yml, and then removes only the images associated with the project.
-    #>
     param([string]$ProjectRoot)
     Write-Host "Stopping and removing project containers and volumes in $ProjectRoot..." -ForegroundColor Yellow
     
-    # Use the Invoke-DockerCompose helper for 'down'
-    Invoke-DockerCompose "down --volumes" -ProjectRoot $ProjectRoot
+    # Stop and remove containers, networks, and project volumes
+    Invoke-DockerCompose "down --volumes" -ProjectRoot $ProjectRoot -EnvFile $EnvFile
 
     Write-Host "Removing project images..." -ForegroundColor Yellow
     
-    # Get the names of the services defined in the compose file
-    $services = (Invoke-DockerCompose "config --services" -ProjectRoot $ProjectRoot) -split "`n" | Where-Object { $_ }
+    # Get service names using the project directory context
+    $services = (Invoke-DockerCompose "config --services" -ProjectRoot $ProjectRoot -EnvFile $EnvFile) -split "`n" | Where-Object { $_ }
     
     foreach ($service in $services) {
-        # Get the image name using the project directory context
-        $imageName = (docker-compose --project-directory $ProjectRoot config --images --services $service)
-        if ($imageName) {
+        # Get the image name. If Invoke-DockerCompose fails, it returns $null, preventing the .Trim() error.
+        $imageName = (Invoke-DockerCompose "config --images --services $service" -ProjectRoot $ProjectRoot -EnvFile $EnvFile).Trim()
+        
+        # Check if an image name was successfully retrieved and not an error message
+        if (-not [string]::IsNullOrWhiteSpace($imageName)) { 
             Write-Host "Attempting to remove image: $imageName" -ForegroundColor Cyan
             docker rmi -f $imageName 2>$null 
         }
@@ -94,21 +118,14 @@ function Remove-ProjectDockerAssets {
     Write-Host "Project containers, volumes, and images removed." -ForegroundColor Green
 }
 
-## 🚀 Execution Function (The menu entry point)
-
-param(
-    [Parameter(Mandatory = $true)]
-    [ValidateSet("rebuild", "stop", "clean_all", "remove_project")]
-    [string]$Action,
-    
-    [Parameter(Mandatory = $true)]
-    [string]$ProjectRoot # New mandatory parameter for the location of docker-compose.yml
-)
+# -----------------------------------------------------------------------------
+## 🚀 Execution Logic
+# -----------------------------------------------------------------------------
 
 switch ($Action) {
-    "rebuild" { Start-DockerServices -ProjectRoot $ProjectRoot }
-    "stop" { Stop-DockerServices -ProjectRoot $ProjectRoot }
-    "clean_all" { Remove-AllDockerAssets }
-    "clean_project" { Remove-ProjectDockerAssets -ProjectRoot $ProjectRoot }
+    "rebuild" { Start-DockerServices -ProjectRoot $ProjectRoot -EnvFile $EnvFile }
+    "stop" { Stop-DockerServices -ProjectRoot $ProjectRoot -EnvFile $EnvFile }
+    "remove_all" { Remove-AllDockerAssets }
+    "remove_project" { Remove-ProjectDockerAssets -ProjectRoot $ProjectRoot -EnvFile $EnvFile }
     default { Write-Host "Invalid action specified." -ForegroundColor Red }
 }

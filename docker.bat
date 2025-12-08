@@ -5,7 +5,10 @@ setlocal
 set "PROJECT_ROOT=%~dp0"
 
 :: Define the path to the PowerShell script in the 'scripts' subdirectory
-set "PS_SCRIPT_PATH=scripts\DockerManager.ps1"
+set "PS_SCRIPT_PATH=%PROJECT_ROOT%scripts\docker_manager.ps1"
+
+:: Define the environment file path once, as it's needed for all project actions to avoid the .env lookup error
+set "ENV_FILE_PATH=%PROJECT_ROOT%.env.dev"
 
 :MENU
 cls
@@ -14,6 +17,8 @@ echo    Docker Management Menu
 echo =========================================================
 echo.
 echo    (Root: %PROJECT_ROOT%)
+echo    (Script Path: %PS_SCRIPT_PATH%)
+echo    (ENV File: %ENV_FILE_PATH%)
 echo.
 echo.
 echo    1. Rebuild & Start Services
@@ -39,14 +44,14 @@ goto MENU
 
 :REBUILD
 echo.
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT_PATH%" -Action "rebuild" -ProjectRoot "%PROJECT_ROOT%"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT_PATH%" -Action "rebuild" -ProjectRoot "%PROJECT_ROOT%" -EnvFile "%ENV_FILE_PATH%"
 echo.
 pause
 goto MENU
 
 :STOP
 echo.
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT_PATH%" -Action "stop" -ProjectRoot "%PROJECT_ROOT%"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT_PATH%" -Action "stop" -ProjectRoot "%PROJECT_ROOT%" -EnvFile "%ENV_FILE_PATH%"
 echo.
 pause
 goto MENU
@@ -55,7 +60,7 @@ goto MENU
 echo.
 echo WARNING: This will remove all containers, volumes, and images ONLY related to this project.
 pause
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT_PATH%" -Action "remove_project" -ProjectRoot "%PROJECT_ROOT%"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT_PATH%" -Action "remove_project" -ProjectRoot "%PROJECT_ROOT%" -EnvFile "%ENV_FILE_PATH%"
 echo.
 pause
 goto MENU
