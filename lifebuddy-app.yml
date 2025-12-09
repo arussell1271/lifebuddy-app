@@ -20,7 +20,6 @@ volumes:
 
 # --- Services Definitions ---
 services:
-
   # 1. DEVELOPMENT DATABASE (Postgres + pgvector)
   dev_db:
     # Service Name: dev_db
@@ -35,7 +34,8 @@ services:
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - core-network
-    profiles: [ "dev" ]
+    profiles:
+      - dev
     restart: always
 
   # 2. PRODUCTION DATABASE (Postgres + pgvector)
@@ -50,9 +50,10 @@ services:
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - core-network
-    profiles: [ "prod" ]
+    profiles:
+      - prod
     restart: always
-    
+
   # 3.REDIS (Message Broker)
   # FIXED: Explicitly named service 'message-broker' to match documentation.
   message-broker:
@@ -84,8 +85,9 @@ services:
       - dev_engine
     networks:
       - frontend-network # User access
-      - core-network     # Database/Engine access
-    profiles: [ "dev" ]
+      - core-network # Database/Engine access
+    profiles:
+      - dev
     restart: always
 
   # 5. DEVELOPMENT COGNITIVE ENGINE (Brain API - LLM & DB Logic)
@@ -104,9 +106,10 @@ services:
       - message-broker # CRITICAL ADDITION
     networks:
       - core-network
-    profiles: [ "dev" ]
+    profiles:
+      - dev
     restart: always
-    
+
   # 6. PRODUCTION APPLICATION SERVICE (The Body)
   prod_app:
     # Service Name: prod_app
@@ -125,7 +128,8 @@ services:
     networks:
       - frontend-network
       - core-network
-    profiles: [ "prod" ]
+    profiles:
+      - prod
     restart: always
 
   # 7. PRODUCTION COGNITIVE ENGINE (Brain API)
@@ -144,7 +148,8 @@ services:
       - message-broker
     networks:
       - core-network
-    profiles: [ "prod" ]
+    profiles:
+      - prod
     restart: always
 
   # 8. MAINTENANCE SERVICE (NEW - For Privileged Cron Jobs) 🚨
@@ -156,17 +161,18 @@ services:
     # Use the Engine image as it requires the privileged full DB role and all dependencies
     build:
       context: .
-      dockerfile: Dockerfile.engine 
+      dockerfile: Dockerfile.engine
     depends_on:
       - dev_db
     # CRITICAL: No exposed ports. Only on the secure core-network.
     networks:
       - core-network
-    profiles: [ "dev" ]
+    profiles:
+      - dev
     restart: "no" # This is a job, not a continuously running server
     # Entrypoint to run the nightly purge script (Example path)
     command: python /usr/src/app/engine/maintenance/run_purge_cron.py
-  
+
   # 9. PGADMIN (DB Admin Tool)
   pgadmin:
     container_name: pgadmin
@@ -174,7 +180,7 @@ services:
     ports:
       - "5050:80"
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@lifebuddy.com 
+      PGADMIN_DEFAULT_EMAIL: admin@lifebuddy.com
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASS}
     volumes:
       - pgadmin_data:/var/lib/pgadmin

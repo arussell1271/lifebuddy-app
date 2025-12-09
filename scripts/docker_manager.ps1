@@ -1,4 +1,4 @@
-# docker_manager.ps1
+# docker_manager.ps1 - Core Docker Compose Management Script
 
 ## 🚀 Execution Function - Entry Point
 param(
@@ -6,46 +6,44 @@ param(
     [ValidateSet("rebuild", "stop", "remove_all", "remove_project")]
     [string]$Action,
     
+    # New parameter to accept the full path to the docker-compose file
     [Parameter(Mandatory = $true)]
-    [string]$ProjectRoot, # Path to the directory containing docker-compose.yml
+    [string]$ComposeFilePath, 
 
-    # New parameter to accept an optional environment file path
-    [string]$EnvFile 
+    # Parameter to accept the profile name (e.g., 'dev' or 'prod')
+    [string]$ProfileName 
 )
 
 # -----------------------------------------------------------------------------
 ## ⚙️ Helper Functions
 # -----------------------------------------------------------------------------
 
-# Helper function to execute docker-compose commands with the specified project root
+# Helper function to execute docker-compose commands with the specified compose file and profile
 function Invoke-DockerCompose {
     param(
         [string]$Command,
-        [string]$ProjectRoot,
-        [string]$EnvFile
+        [string]$ComposeFilePath,
+        [string]$ProfileName
     )
     
     # 1. Start building the argument list for the native 'docker' command
-    # This array method correctly handles paths with spaces (e.g., 'VS Code')
-    $dockerArgs = @("compose", "--project-directory", $ProjectRoot)
+    # Use -f to explicitly specify the file name using the passed parameter
+    $dockerArgs = @("compose", "-f", $ComposeFilePath)
 
-    # 2. Add the optional --env-file argument if a file was provided
-    if (-not [string]::IsNullOrWhiteSpace($EnvFile)) {
-        $dockerArgs += @("--env-file", $EnvFile)
+    # 2. Add the optional --profile argument if a profile name was provided
+    if (-not [string]::IsNullOrWhiteSpace($ProfileName)) {
+        $dockerArgs += @("--profile", $ProfileName)
     }
     
     # 3. Add the specific command and its parameters
-    # Splitting the command string ensures that arguments (like 'down' and '--volumes') are separate array elements
     $commandArray = $Command -split ' ' | Where-Object { $_ }
-    $dockerArgs += $commandArray
-    
-    # Execute the command by passing the argument array to the native 'docker' executable.
+    $dockerArgs += $commandArray 
+
+    # Execute the command
     $output = docker @dockerArgs
     
-    # Check the $LASTEXITCODE which holds the exit code of the last executed native command
     if ($LASTEXITCODE -ne 0) {
         Write-Host "ERROR: Docker Compose command failed: $Command" -ForegroundColor Red
-        # Return $null on failure
         return $null
     }
     
@@ -58,25 +56,25 @@ function Invoke-DockerCompose {
 
 # 1. Start Up/Rebuild
 function Start-DockerServices {
-    param([string]$ProjectRoot, [string]$EnvFile)
-    Write-Host "Starting/Rebuilding Docker services in $ProjectRoot..." -ForegroundColor Green
-    # Invoke-DockerCompose "up --build -d " -ProjectRoot $ProjectRoot -EnvFile $EnvFile
-    docker compose -f " $ProjectRoot "docker-compose.yml up -d --build --profile dev
+    param([string]$ComposeFilePath, [string]$ProfileName)
+    Write-Host "Starting/Rebuilding Docker services using file '$ComposeFilePath' with profile '$ProfileName'..." -ForegroundColor Green
+    
+    # Use the command arguments: 'up -d --build'
+    Invoke-DockerCompose "up -d --build" $ComposeFilePath -ProfileName $ProfileName
 }
 
 # 2. Shut Down
 function Stop-DockerServices {
-    param([string]$ProjectRoot)
-    Write-Host "Stopping and removing Docker services in $ProjectRoot..." -ForegroundColor Yellow
-    Write-Host "Environment File: $EnvFile" -ForegroundColor Yellow
+    param([string]$ComposeFilePath, [string]$ProfileName)
+    Write-Host "Stopping and removing Docker services for profile '$ProfileName' using file '$ComposeFilePath'..." -ForegroundColor Yellow
 
     # 'down' stops and removes containers, networks, and default volumes
-    # Invoke-DockerCompose "down" -ProjectRoot $ProjectRoot -EnvFile $EnvFile
-    docker compose -f " $ProjectRoot "docker-compose.yml down --profile dev
+    Invoke-DockerCompose "down" -ComposeFilePath $ComposeFilePath -ProfileName $ProfileName
 }
 
 # 3. Remove / Delete All (System-wide)
 function Remove-AllDockerAssets {
+    # Note: This function remains system-wide and does not use the Compose file path
     Write-Host "--- WARNING: EXTREME CLEANUP MODE INITIATED (System-wide) ---" -ForegroundColor Red
     
     Write-Host "Stopping all running containers..." -ForegroundColor Red
@@ -89,7 +87,6 @@ function Remove-AllDockerAssets {
     docker volume prune -f
 
     Write-Host "Removing all unused images..." -ForegroundColor Red
-    # -a removes all images without at least one container associated with them
     docker image prune -a -f
 
     Write-Host "Docker system assets (containers, volumes, images) cleaned." -ForegroundColor Green
@@ -97,22 +94,21 @@ function Remove-AllDockerAssets {
 
 # 4. Remove / Delete Project Assets (Project-specific)
 function Remove-ProjectDockerAssets {
-    param([string]$ProjectRoot)
-    Write-Host "Stopping and removing project containers and volumes in $ProjectRoot..." -ForegroundColor Yellow
+    param([string]$ComposeFilePath, [string]$ProfileName)
+    Write-Host "Stopping and removing project containers and volumes for profile '$ProfileName' defined in file '$ComposeFilePath'..." -ForegroundColor Yellow
     
-    # Stop and remove containers, networks, and project volumes
-    Invoke-DockerCompose "down --volumes" -ProjectRoot $ProjectRoot -EnvFile $EnvFile
+    # Use 'down --volumes' to also remove named volumes associated with the services
+    Invoke-DockerCompose "down --volumes" -ComposeFilePath $ComposeFilePath -ProfileName $ProfileName
 
-    Write-Host "Removing project images..." -ForegroundColor Yellow
+    Write-Host "Attempting to remove project images..." -ForegroundColor Yellow
     
-    # Get service names using the project directory context
-    $services = (Invoke-DockerCompose "config --services" -ProjectRoot $ProjectRoot -EnvFile $EnvFile) -split "`n" | Where-Object { $_ }
+    # Get service names using the profile context
+    $services = (Invoke-DockerCompose "config --services" -ComposeFilePath $ComposeFilePath -ProfileName $ProfileName) -split "`n" | Where-Object { $_ }
     
     foreach ($service in $services) {
-        # Get the image name. If Invoke-DockerCompose fails, it returns $null, preventing the .Trim() error.
-        $imageName = (Invoke-DockerCompose "config --images --services $service" -ProjectRoot $ProjectRoot -EnvFile $EnvFile).Trim()
+        # Get the image name.
+        $imageName = (Invoke-DockerCompose "config --images --services $service" -ComposeFilePath $ComposeFilePath -ProfileName $ProfileName).Trim()
         
-        # Check if an image name was successfully retrieved and not an error message
         if (-not [string]::IsNullOrWhiteSpace($imageName)) { 
             Write-Host "Attempting to remove image: $imageName" -ForegroundColor Cyan
             docker rmi -f $imageName 2>$null 
@@ -126,10 +122,11 @@ function Remove-ProjectDockerAssets {
 ## 🚀 Execution Logic
 # -----------------------------------------------------------------------------
 
+# Use the -ComposeFilePath parameter for all relevant actions
 switch ($Action) {
-    "rebuild" { Start-DockerServices -ProjectRoot $ProjectRoot -EnvFile $EnvFile }
-    "stop" { Stop-DockerServices -ProjectRoot $ProjectRoot -EnvFile $EnvFile }
+    "rebuild" { Start-DockerServices -ComposeFilePath $ComposeFilePath -ProfileName $ProfileName }
+    "stop" { Stop-DockerServices -ComposeFilePath $ComposeFilePath -ProfileName $ProfileName }
     "remove_all" { Remove-AllDockerAssets }
-    "remove_project" { Remove-ProjectDockerAssets -ProjectRoot $ProjectRoot -EnvFile $EnvFile }
+    "remove_project" { Remove-ProjectDockerAssets -ComposeFilePath $ComposeFilePath -ProfileName $ProfileName }
     default { Write-Host "Invalid action specified." -ForegroundColor Red }
 }
