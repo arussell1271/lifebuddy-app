@@ -60,15 +60,19 @@ function Invoke-DockerCompose {
 function Start-DockerServices {
     param([string]$ProjectRoot, [string]$EnvFile)
     Write-Host "Starting/Rebuilding Docker services in $ProjectRoot..." -ForegroundColor Green
-    Invoke-DockerCompose "up --build -d" -ProjectRoot $ProjectRoot -EnvFile $EnvFile
+    # Invoke-DockerCompose "up --build -d " -ProjectRoot $ProjectRoot -EnvFile $EnvFile
+    docker compose -f " $ProjectRoot "docker-compose.yml up -d --build --profile dev
 }
 
 # 2. Shut Down
 function Stop-DockerServices {
     param([string]$ProjectRoot)
     Write-Host "Stopping and removing Docker services in $ProjectRoot..." -ForegroundColor Yellow
+    Write-Host "Environment File: $EnvFile" -ForegroundColor Yellow
+
     # 'down' stops and removes containers, networks, and default volumes
-    Invoke-DockerCompose "down" -ProjectRoot $ProjectRoot -EnvFile $EnvFile
+    # Invoke-DockerCompose "down" -ProjectRoot $ProjectRoot -EnvFile $EnvFile
+    docker compose -f " $ProjectRoot "docker-compose.yml down --profile dev
 }
 
 # 3. Remove / Delete All (System-wide)

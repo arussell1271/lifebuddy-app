@@ -44,7 +44,10 @@ goto MENU
 
 :REBUILD
 echo.
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT_PATH%" -Action "rebuild" -ProjectRoot "%PROJECT_ROOT%" -EnvFile "%ENV_FILE_PATH%"
+echo Rebuilding and Starting Services...
+echo.
+::powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT_PATH%" -Action "rebuild" -ProjectRoot "%PROJECT_ROOT%" -EnvFile "%ENV_FILE_PATH%"
+powershell.exe -File "%PS_SCRIPT_PATH%" -Action "rebuild" -ProjectRoot "%PROJECT_ROOT%"
 echo.
 pause
 goto MENU
