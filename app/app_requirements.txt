@@ -8,3 +8,4 @@ pydantic
 python-jose[cryptography] # For JWT handling
 httpx # For calling the internal Engine API
 redis # For job initiation
+gunicorn

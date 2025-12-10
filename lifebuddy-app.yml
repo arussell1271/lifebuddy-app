@@ -179,17 +179,16 @@ services:
     image: dpage/pgadmin4
     ports:
       - "5050:80"
+    env_file:
+      - .env.dev
+      - .env.prod # Allow both for flexibility
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@lifebuddy.com
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASS}
     volumes:
       - pgadmin_data:/var/lib/pgadmin
-    depends_on:
-      - dev_db
     networks:
       - frontend-network
-    profiles:
-      - dev
     restart: unless-stopped
 
   # 10. OLLAMA (Local LLM Engine)

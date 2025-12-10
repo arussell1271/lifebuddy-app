@@ -60,7 +60,7 @@ function Start-DockerServices {
     Write-Host "Starting/Rebuilding Docker services using file '$ComposeFilePath' with profile '$ProfileName'..." -ForegroundColor Green
     
     # Use the command arguments: 'up -d --build'
-    Invoke-DockerCompose "up -d --build" $ComposeFilePath -ProfileName $ProfileName
+    Invoke-DockerCompose "up -d --build --force-recreate " $ComposeFilePath -ProfileName $ProfileName
 }
 
 # 2. Shut Down

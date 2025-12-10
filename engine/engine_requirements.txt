@@ -9,3 +9,4 @@ pgvector # Required for vector similarity search
 langchain # Common LLM orchestration library
 ollama # Client for the local LLM service
 rq # Redis Queue or similar message queue worker library
+gunicorn
