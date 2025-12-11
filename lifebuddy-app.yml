@@ -182,9 +182,6 @@ services:
     env_file:
       - .env.dev
       - .env.prod # Allow both for flexibility
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@lifebuddy.com
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASS}
     volumes:
       - pgadmin_data:/var/lib/pgadmin
     networks:

@@ -3,7 +3,7 @@
 ## 🚀 Execution Function - Entry Point
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet("rebuild", "stop", "remove_all", "remove_project")]
+    [ValidateSet("rebuild", "pull_mistral", "stop", "remove_all", "remove_project")]
     [string]$Action,
     
     # New parameter to accept the full path to the docker-compose file
@@ -63,16 +63,34 @@ function Start-DockerServices {
     Invoke-DockerCompose "up -d --build --force-recreate " $ComposeFilePath -ProfileName $ProfileName
 }
 
-# 2. Shut Down
+# 2. Ollama: Pull Mistral Model (Direct docker exec)
+function Pull-MistralModel {
+    Write-Host "Attempting to pull 'mistral' model in the 'ollama' container..." -ForegroundColor Green
+    
+    # Execute the direct docker command.
+    # Note: Using 'docker exec' is direct and doesn't require docker-compose context.
+    docker exec -it ollama ollama pull mistral
+    
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: Pull command failed." -ForegroundColor Red
+    }
+    else {
+        Write-Host "'mistral' model pull command finished." -ForegroundColor Green
+    }
+}
+
+
+# 3. Shut Down
 function Stop-DockerServices {
     param([string]$ComposeFilePath, [string]$ProfileName)
     Write-Host "Stopping and removing Docker services for profile '$ProfileName' using file '$ComposeFilePath'..." -ForegroundColor Yellow
 
     # 'down' stops and removes containers, networks, and default volumes
-    Invoke-DockerCompose "down" -ComposeFilePath $ComposeFilePath -ProfileName $ProfileName
+    # Invoke-DockerCompose "down" -ComposeFilePath $ComposeFilePath -ProfileName $ProfileName
+    docker compose down -v --remove-orphans
 }
 
-# 3. Remove / Delete All (System-wide)
+# 4. Remove / Delete All (System-wide)
 function Remove-AllDockerAssets {
     # Note: This function remains system-wide and does not use the Compose file path
     Write-Host "--- WARNING: EXTREME CLEANUP MODE INITIATED (System-wide) ---" -ForegroundColor Red
@@ -92,7 +110,7 @@ function Remove-AllDockerAssets {
     Write-Host "Docker system assets (containers, volumes, images) cleaned." -ForegroundColor Green
 }
 
-# 4. Remove / Delete Project Assets (Project-specific)
+# 5. Remove / Delete Project Assets (Project-specific)
 function Remove-ProjectDockerAssets {
     param([string]$ComposeFilePath, [string]$ProfileName)
     Write-Host "Stopping and removing project containers and volumes for profile '$ProfileName' defined in file '$ComposeFilePath'..." -ForegroundColor Yellow
@@ -125,6 +143,7 @@ function Remove-ProjectDockerAssets {
 # Use the -ComposeFilePath parameter for all relevant actions
 switch ($Action) {
     "rebuild" { Start-DockerServices -ComposeFilePath $ComposeFilePath -ProfileName $ProfileName }
+    "pull_mistral" { Pull-MistralModel }
     "stop" { Stop-DockerServices -ComposeFilePath $ComposeFilePath -ProfileName $ProfileName }
     "remove_all" { Remove-AllDockerAssets }
     "remove_project" { Remove-ProjectDockerAssets -ComposeFilePath $ComposeFilePath -ProfileName $ProfileName }
