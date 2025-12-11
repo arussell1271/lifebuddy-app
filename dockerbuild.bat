@@ -54,7 +54,7 @@ echo Rebuilding and Starting Services...
 echo.
 :: Call PowerShell with -Action "rebuild" and -ProfileName
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT_PATH%" -Action "rebuild" -ComposeFilePath "%PS_DOCKER_COMPOSE%" -ProfileName "%PROFILE_NAME%"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT_PATH%" -Action "pull_mistral" -ComposeFilePath "%PS_DOCKER_COMPOSE%" -ProfileName "%PROFILE_NAME%"
+::powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT_PATH%" -Action "pull_mistral" -ComposeFilePath "%PS_DOCKER_COMPOSE%" -ProfileName "%PROFILE_NAME%"
 echo.
 pause
 goto MENU

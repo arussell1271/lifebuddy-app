@@ -14,7 +14,7 @@ CREATE ROLE cognitive_engine_rls WITH LOGIN PASSWORD '${POSTGRES_USER_RLS_PASS}'
 
 -- 3. Execute the full DDL (Data Definition Language) from your main schema file.
 --    The file must be copied into the container's entrypoint directory for this to work.
--- \i /docker-entrypoint-initdb.d/03 db_schema.sql
+\i /docker-entrypoint-initdb.d/03 db_schema.sql
 
 -- 4. Set the default search path for the roles
 --    This is often a good practice to ensure roles can find objects without schema prefixes.
