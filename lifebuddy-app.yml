@@ -186,6 +186,7 @@ services:
       - pgadmin_data:/var/lib/pgadmin
     networks:
       - frontend-network
+      - core-network
     restart: unless-stopped
 
   # 10. OLLAMA (Local LLM Engine)
