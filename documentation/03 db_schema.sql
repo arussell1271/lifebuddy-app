@@ -70,6 +70,18 @@ ALTER DATABASE postgres SET app.current_user_id TO '';
 -- RLS policies will reference this setting directly: current_setting('app.current_user_id')::uuid 
 
 -- =========================================================================
+-- 0.5. RLS HELPER FUNCTION
+-- =========================================================================
+-- Function to retrieve the current user's ID from the application context
+CREATE OR REPLACE FUNCTION get_current_user_id() 
+RETURNS UUID 
+LANGUAGE sql 
+STABLE 
+AS $$ 
+    SELECT NULLIF(current_setting('app.current_user_id', TRUE), '')::uuid; 
+$$;
+
+-- =========================================================================
 -- 1.5 USERS (Identity & Auth Root)
 -- =========================================================================
 
@@ -88,12 +100,81 @@ CREATE TABLE IF NOT EXISTS users (
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 
 -- =========================================================================
--- 2. ACTIONABLE ITEMS (The 'Goal/Task' definition - EXECUTE component)
+-- 2. USER PREFERENCES (Configuration - Supports all components)
+-- =========================================================================
+
+CREATE TABLE IF NOT EXISTS user_preferences (
+    user_id UUID PRIMARY KEY REFERENCES users(user_id) ON DELETE CASCADE, -- One-to-one relationship with users
+    
+    -- Advisor Naming
+    advisor_name_spiritual VARCHAR(100) DEFAULT 'The Cultivator',
+    advisor_name_action VARCHAR(100) DEFAULT 'The Executor',
+    advisor_name_health VARCHAR(100) DEFAULT 'The Contributor',
+    
+    -- User-defined Synthesis Matrix (Consolidated from ALTER)
+    synthesis_matrix JSONB,
+
+    -- Spiritual Advisor Configuration (Used by the Cognitive Engine)
+    spiritual_mode VARCHAR(50) NOT NULL CHECK (spiritual_mode IN ('TAROT', 'GOD', 'NEUTRAL')) DEFAULT 'NEUTRAL', 
+    spiritual_tone VARCHAR(50) NOT NULL CHECK (spiritual_tone IN ('GUIDANCE', 'MENTOR', 'EXPERT')) DEFAULT 'MENTOR',
+    
+    -- Health Advisor Configuration (Data Ingestion)
+    health_data_ingestion VARCHAR(50) NOT NULL CHECK (health_data_ingestion IN ('APPLE_HEALTH', 'DIRECT_DB')) DEFAULT 'DIRECT_DB',
+    
+    updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Stores explicit, revokable consent for professionals (Secondary Users) to access a Primary User's data.
+CREATE TABLE IF NOT EXISTS data_access_grants (
+    grant_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    primary_user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE, 
+    professional_user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE RESTRICT, 
+    
+    -- Defines granular, user-scoped consent (e.g., {"health_metrics": true, "cultivate_data": false, "start_date": "YYYY-MM-DD"})
+    access_scope JSONB NOT NULL, 
+    
+    granted_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    revoked_at TIMESTAMP WITHOUT TIME ZONE, -- If populated, access is denied.
+    
+    UNIQUE (primary_user_id, professional_user_id)
+);
+
+-- RLS POLICY UPDATE MANDATE (CRITICAL):
+-- All RLS-enabled tables (documents, health_metrics, adherence_log, etc.) MUST be updated 
+-- to allow access if: 
+-- 1. current_user_id = row.user_id (Primary User access), OR
+-- 2. current_user_id is in data_access_grants AND the grant is NOT revoked AND the access_scope 
+--    permits the data type being queried.
+
+-- --------------------------------- 
+-- RLS Policy on user_preferences (PRIMARY ISOLATION ONLY) 
+-- --------------------------------- 
+ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY; 
+DROP POLICY IF EXISTS user_isolation_preferences ON user_preferences; 
+CREATE POLICY user_isolation_preferences ON user_preferences 
+-- CRITICAL FIX: Use the project's standard RLS context setting 
+    USING (user_id = current_setting('app.current_user_id')::uuid) 
+    WITH CHECK (user_id = current_setting('app.current_user_id')::uuid); 
+        
+ALTER TABLE user_preferences FORCE ROW LEVEL SECURITY;
+
+-- Index for performance on the primary access column (moved to section 12)
+
+ALTER TABLE data_access_grants ENABLE ROW LEVEL SECURITY; 
+CREATE POLICY user_isolation_data_access_grants ON data_access_grants 
+    USING (primary_user_id = current_setting('app.current_user_id')::uuid) 
+    WITH CHECK (primary_user_id = current_setting('app.current_user_id')::uuid); 
+    
+ALTER TABLE data_access_grants FORCE ROW LEVEL SECURITY;
+
+
+-- =========================================================================
+-- 3. ACTIONABLE ITEMS (The 'Goal/Task' definition - EXECUTE component)
 -- =========================================================================
 
 CREATE TABLE IF NOT EXISTS actionable_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id),
+    user_id UUID NOT NULL REFERENCES users(user_id),
     title VARCHAR(255) NOT NULL,
     description TEXT,
     
@@ -130,12 +211,12 @@ CREATE POLICY user_isolation_action_items ON actionable_items
 ALTER TABLE actionable_items FORCE ROW LEVEL SECURITY;
 
 -- =========================================================================
--- 3. ADHERENCE LOG (The 'Execution' tracking - EXECUTE component)
+-- 4. ADHERENCE LOG (The 'Execution' tracking - EXECUTE component)
 -- =========================================================================
 
 CREATE TABLE IF NOT EXISTS adherence_log (
     actionable_item_id UUID NOT NULL REFERENCES actionable_items(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES users(id), -- Redundant user_id for RLS and query performance
+    user_id UUID NOT NULL REFERENCES users(user_id), -- Redundant user_id for RLS and query performance
     log_date DATE NOT NULL,
     
     status VARCHAR(50) NOT NULL CHECK (status IN ('COMPLETE', 'INCOMPLETE', 'SKIPPED')),
@@ -156,12 +237,12 @@ CREATE POLICY user_isolation_adherence_log ON adherence_log
 
 
 -- =========================================================================
--- 4. DOCUMENTS (Unstructured Cognitive Data - CULTIVATE component)
+-- 5. DOCUMENTS (Unstructured Cognitive Data - CULTIVATE component)
 -- =========================================================================
 
 CREATE TABLE IF NOT EXISTS documents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id),
+    user_id UUID NOT NULL REFERENCES users(user_id),
     
     document_type VARCHAR(50) NOT NULL CHECK (document_type IN ('DREAM', 'SPIRITUAL', 'QNA_USER')), 
     
@@ -202,12 +283,12 @@ ALTER TABLE documents FORCE ROW LEVEL SECURITY;
 
 
 -- =========================================================================
--- 5. HEALTH METRICS (Structured Clinical Data - CONTRIBUTE component)
+-- 6. HEALTH METRICS (Structured Clinical Data - CONTRIBUTE component)
 -- =========================================================================
 
 CREATE TABLE IF NOT EXISTS health_metrics (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id),
+    user_id UUID NOT NULL REFERENCES users(user_id),
     
     metric_name VARCHAR(100) NOT NULL CHECK (metric_name IN ('RHR', 'SLEEP_SCORE', 'BLOOD_GLUCOSE', 'WEIGHT')),
     
@@ -252,14 +333,14 @@ CREATE POLICY user_isolation_health_metrics
 ALTER TABLE health_metrics FORCE ROW LEVEL SECURITY;
 
 -- =========================================================================
--- 6. VECTOR STORAGE (Digital Memory - Supports CULTIVATE retrieval)
+-- 7. VECTOR STORAGE (Digital Memory - Supports CULTIVATE retrieval)
 -- =========================================================================
 
 CREATE TABLE IF NOT EXISTS document_vectors (
     document_id UUID PRIMARY KEY REFERENCES documents(id) ON DELETE CASCADE,
     embedding VECTOR(1536) NOT NULL,
     
-    user_id UUID NOT NULL REFERENCES users(id) -- Required for security filtering (PoLP)
+    user_id UUID NOT NULL REFERENCES users(user_id) -- Required for security filtering (PoLP)
 );
 
 -- ------------------------------
@@ -269,74 +350,6 @@ ALTER TABLE document_vectors ENABLE ROW LEVEL SECURITY;
 CREATE POLICY user_isolation_document_vectors ON document_vectors
     USING (user_id = get_current_user_id())
     WITH CHECK (user_id = get_current_user_id());
-
--- =========================================================================
--- 7. USER PREFERENCES (Configuration - Supports all components)
--- =========================================================================
-
-CREATE TABLE IF NOT EXISTS user_preferences (
-    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, -- One-to-one relationship with users
-    
-    -- Advisor Naming
-    advisor_name_spiritual VARCHAR(100) DEFAULT 'The Cultivator',
-    advisor_name_action VARCHAR(100) DEFAULT 'The Executor',
-    advisor_name_health VARCHAR(100) DEFAULT 'The Contributor',
-    
-    -- User-defined Synthesis Matrix (Consolidated from ALTER)
-    synthesis_matrix JSONB,
-
-    -- Spiritual Advisor Configuration (Used by the Cognitive Engine)
-    spiritual_mode VARCHAR(50) NOT NULL CHECK (spiritual_mode IN ('TAROT', 'GOD', 'NEUTRAL')) DEFAULT 'NEUTRAL', 
-    spiritual_tone VARCHAR(50) NOT NULL CHECK (spiritual_tone IN ('GUIDANCE', 'MENTOR', 'EXPERT')) DEFAULT 'MENTOR',
-    
-    -- Health Advisor Configuration (Data Ingestion)
-    health_data_ingestion VARCHAR(50) NOT NULL CHECK (health_data_ingestion IN ('APPLE_HEALTH', 'DIRECT_DB')) DEFAULT 'DIRECT_DB',
-    
-    updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Stores explicit, revokable consent for professionals (Secondary Users) to access a Primary User's data.
-CREATE TABLE IF NOT EXISTS data_access_grants (
-    grant_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    primary_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- Corrected reference to users(id)
-    professional_user_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT, -- Corrected reference to users(id)
-    
-    -- Defines granular, user-scoped consent (e.g., {"health_metrics": true, "cultivate_data": false, "start_date": "YYYY-MM-DD"})
-    access_scope JSONB NOT NULL, 
-    
-    granted_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    revoked_at TIMESTAMP WITHOUT TIME ZONE, -- If populated, access is denied.
-    
-    UNIQUE (primary_user_id, professional_user_id)
-);
-
--- RLS POLICY UPDATE MANDATE (CRITICAL):
--- All RLS-enabled tables (documents, health_metrics, adherence_log, etc.) MUST be updated 
--- to allow access if: 
--- 1. current_user_id = row.user_id (Primary User access), OR
--- 2. current_user_id is in data_access_grants AND the grant is NOT revoked AND the access_scope 
---    permits the data type being queried.
-
--- --------------------------------- 
--- RLS Policy on user_preferences (PRIMARY ISOLATION ONLY) 
--- --------------------------------- 
-ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY; 
-DROP POLICY IF EXISTS user_isolation_preferences ON user_preferences; 
-CREATE POLICY user_isolation_preferences ON user_preferences 
--- CRITICAL FIX: Use the project's standard RLS context setting 
-    USING (user_id = current_setting('app.current_user_id')::uuid) 
-    WITH CHECK (user_id = current_setting('app.current_user_id')::uuid); 
-        
-ALTER TABLE user_preferences FORCE ROW LEVEL SECURITY;
-
--- Index for performance on the primary access column (moved to section 12)
-
-ALTER TABLE data_access_grants ENABLE ROW LEVEL SECURITY; 
-CREATE POLICY user_isolation_data_access_grants ON data_access_grants 
-    USING (primary_user_id = current_setting('app.current_user_id')::uuid) 
-    WITH CHECK (primary_user_id = current_setting('app.current_user_id')::uuid); 
-    
-ALTER TABLE data_access_grants FORCE ROW LEVEL SECURITY;
 
 
 -- =========================================================================
@@ -396,7 +409,7 @@ CREATE TABLE IF NOT EXISTS pre_synthesis_questions (
     advisor_type VARCHAR(50) NOT NULL 
         CHECK (advisor_type IN ('CULTIVATE', 'EXECUTE', 'CONTRIBUTE')),
         
-    question_text TEXT NOT NULL,
+    question_text TEXT NOT NULL UNIQUE, -- ADDED UNIQUE CONSTRAINT HERE
     
     -- Expected answer format to guide the client (e.g., 'TEXT', 'NUMBER', 'DATE')
     expected_format VARCHAR(50) NOT NULL, 
@@ -417,7 +430,7 @@ CREATE TABLE IF NOT EXISTS pre_synthesis_questions (
 -- CRITICAL RETENTION MANDATE: Data MUST be purged after a 4-day rolling window.
 
 CREATE TABLE IF NOT EXISTS user_cognitive_state (
-    user_id UUID NOT NULL REFERENCES users(id),
+    user_id UUID NOT NULL REFERENCES users(user_id),
     
     -- Date of the status check (ensures a reset every day)
     state_date DATE NOT NULL DEFAULT CURRENT_DATE, 
@@ -454,8 +467,8 @@ CREATE INDEX idx_cognitive_state_user_date ON user_cognitive_state (user_id, sta
 -- =========================================================================
 CREATE TABLE IF NOT EXISTS pre_synthesis_answers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    question_id INTEGER NOT NULL REFERENCES pre_synthesis_questions(id) ON DELETE RESTRICT,
+    user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    question_id UUID NOT NULL REFERENCES pre_synthesis_questions(question_id) ON DELETE RESTRICT, 
     answer_text TEXT NOT NULL, -- Stores the user's textual or numerical answer
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'ANSWERED_EXPLICIT', 'ANSWERED_IMPLICIT')),
     log_date DATE NOT NULL DEFAULT CURRENT_DATE, -- Tracks the calendar day for the answer
@@ -470,68 +483,27 @@ CREATE TABLE IF NOT EXISTS pre_synthesis_answers (
 ALTER TABLE pre_synthesis_answers ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY user_access_pre_synthesis_answers ON pre_synthesis_answers
-    USING (user_id = public.get_current_user_id())
-    WITH CHECK (user_id = public.get_current_user_id());
+    USING (user_id = get_current_user_id())
+    WITH CHECK (user_id = get_current_user_id());
 
 -- Index for fast lookup by user and day
 CREATE INDEX idx_pre_synthesis_answers_user_date ON pre_synthesis_answers (user_id, log_date);
 
 -- =========================================================================
 -- 12. CRITICAL ROW-LEVEL SECURITY (RLS) POLICIES
---    MANDATORY ENFORCEMENT using get_current_user_id() for multi-tenancy.
+--     MANDATORY ENFORCEMENT using get_current_user_id() for multi-tenancy.
 -- =========================================================================
 
--- Enable RLS on all user-owned tables.
+-- Ensure RLS is enabled on the users table (if not already)
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_cognitive_state ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE pre_synthesis_questions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE actionable_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE adherence_log ENABLE ROW LEVEL SECURITY;
-ALTER TABLE health_metrics ENABLE ROW LEVEL SECURITY;
-ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
 
--- CRITICAL POLICIES: Enforce user isolation.
+-- Drop existing policy if running the script multiple times
+DROP POLICY IF EXISTS rls_users_isolation ON users;
 
--- Users Table: Primary users can only see their own record (uses 'id').
+-- Users Table: Primary users can only see their own record (uses 'user_id').
 CREATE POLICY rls_users_isolation ON users
     FOR ALL
-    USING (id = get_current_user_id())
-    WITH CHECK (id = get_current_user_id());
-
--- User Cognitive State: Enforce RLS for user's daily state data (uses 'user_id').
-CREATE POLICY user_isolation_cognitive_state ON user_cognitive_state
-    FOR ALL
-    USING (user_id = get_current_user_id())
-    WITH CHECK (user_id = get_current_user_id());
-
--- Pre-Synthesis Questions: Enforce RLS for user's specific question history.
--- Removed due to RLS not being enabled on this table.
--- CREATE POLICY user_isolation_pre_synthesis ON pre_synthesis_questions
---     FOR ALL
---     USING (user_id = get_current_user_id())
---     WITH CHECK (user_id = get_current_user_id());
-
--- Actionable Items: Enforce RLS for user's personalized tasks.
-CREATE POLICY rls_actionable_items_isolation ON actionable_items
-    FOR ALL
-    USING (user_id = get_current_user_id())
-    WITH CHECK (user_id = get_current_user_id());
-
--- Adherence Log: Enforce RLS for user's adherence tracking.
-CREATE POLICY rls_adherence_log_isolation ON adherence_log
-    FOR ALL
-    USING (user_id = get_current_user_id())
-    WITH CHECK (user_id = get_current_user_id());
-
--- Health Metrics: Enforce RLS for user's biometric data.
-CREATE POLICY user_isolation_health_metrics ON health_metrics
-    FOR ALL
-    USING (user_id = get_current_user_id())
-    WITH CHECK (user_id = get_current_user_id());
-
--- Documents: Enforce RLS for user's uploaded/generated documents.
-CREATE POLICY user_isolation_documents ON documents
-    FOR ALL
+    -- CRITICAL FIX: Changed 'id' to 'user_id'
     USING (user_id = get_current_user_id())
     WITH CHECK (user_id = get_current_user_id());
 
@@ -595,12 +567,12 @@ ON CONFLICT (definition_key) DO NOTHING;
 -- 14.2 SEED DATA: pre_synthesis_questions (Mandatory Daily Check)
 
 -- Essential questions to gather CULTIVATE/EXECUTE data before full Synthesis.
+-- Essential questions to gather CULTIVATE/EXECUTE data before full Synthesis.
 INSERT INTO pre_synthesis_questions (question_text, advisor_type, expected_format, display_order) VALUES
-('What was the dominant emotion in your most recent dream?', 'CULTIVATE', 'single-word emotion', 1)
-ON CONFLICT (question_text) DO NOTHING,
-('What is the single most important action item you failed to adhere to yesterday?', 'EXECUTE', 'short description or item reference', 2)
-ON CONFLICT (question_text) DO NOTHING,
+('What was the dominant emotion in your most recent dream?', 'CULTIVATE', 'single-word emotion', 1),
+('What is the single most important action item you failed to adhere to yesterday?', 'EXECUTE', 'short description or item reference', 2),
 ('On a scale of 1 to 10 (10 being fully aligned), how aligned do you feel with your future self today?', 'CULTIVATE', 'integer 1-10', 3)
+-- The single ON CONFLICT clause applies to all rows above
 ON CONFLICT (question_text) DO NOTHING;
 
 -- =========================================================================
