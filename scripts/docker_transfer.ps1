@@ -130,7 +130,7 @@ elseif ($Direction -eq 'To') {
     
     if (-not (Test-Path "$BackupPath\$BackupFileName")) {
         Write-Host "❌ Error: Backup file '$BackupFileName' not found at $($BackupPath)." -ForegroundColor Red
-        exit 1
+        return
     }
     
     StopAndRemoveOrphans
