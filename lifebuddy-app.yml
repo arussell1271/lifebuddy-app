@@ -21,9 +21,9 @@ volumes:
 # --- Services Definitions ---
 services:
   # 1. DEVELOPMENT DATABASE (Postgres + pgvector)
-  dev_db:
-    # Service Name: dev_db
-    container_name: dev_db
+  lifebuddy-db:
+    # Service Name: lifebuddy-db
+    container_name: lifebuddy-db
     image: pgvector/pgvector:pg16
     env_file:
       - .env.dev
@@ -69,9 +69,9 @@ services:
       retries: 3
 
   # 4. DEVELOPMENT APPLICATION SERVICE (The Body - Public API)
-  dev_app:
-    # Service Name: dev_app
-    container_name: dev_app
+  lifebuddy-app:
+    # Service Name: lifebuddy-app
+    container_name: lifebuddy-app
     build:
       context: .
       dockerfile: Dockerfile.app # <-- NOW USES THE MINIMAL APP-ONLY IMAGE
@@ -82,7 +82,7 @@ services:
       - "8000:8000"
     depends_on:
       - message-broker
-      - dev_engine
+      - lifebuddy-engine
     networks:
       - frontend-network # User access
       - core-network # Database/Engine access
@@ -91,9 +91,9 @@ services:
     restart: always
 
   # 5. DEVELOPMENT COGNITIVE ENGINE (Brain API - LLM & DB Logic)
-  dev_engine:
-    # Service Name: dev_engine
-    container_name: dev_engine
+  lifebuddy-engine:
+    # Service Name: lifebuddy-engine
+    container_name: lifebuddy-engine
     build:
       context: .
       dockerfile: Dockerfile.engine # <-- NOW USES THE FULL ENGINE IMAGE
@@ -101,7 +101,7 @@ services:
       - .env.dev
     command: gunicorn engine.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.00.0.0:8001
     depends_on:
-      - dev_db
+      - lifebuddy-db
       - ollama
       - message-broker # CRITICAL ADDITION
     networks:
@@ -163,7 +163,7 @@ services:
       context: .
       dockerfile: Dockerfile.engine
     depends_on:
-      - dev_db
+      - lifebuddy-db
     # CRITICAL: No exposed ports. Only on the secure core-network.
     networks:
       - core-network

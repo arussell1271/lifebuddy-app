@@ -6,7 +6,7 @@
 
 -- CRITICAL INSTRUCTION: Any schema change that involves user-owned data MUST include RLS using get_current_user_id().
 
-# 03_DB_SCHEMA.sql: Current Database Schema (Version 1.2 - Consolidated DDL) - Cultivate → Execute → Contribute
+-- 03_DB_SCHEMA.sql: Current Database Schema (Version 1.2 - Consolidated DDL) - Cultivate → Execute → Contribute
 
 -- =========================================================================
 -- 0. EXTENSIONS & RLS SETUP
@@ -25,13 +25,30 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Purpose: For Administrative/Maintenance tasks ONLY (e.g., nightly purge, schema updates).
 -- This role MUST NOT be used for serving live user requests. It BYPASSES RLS.
 -- REPLACE 'ChangeThisToYourActualPassword' with the value from your .env file
-CREATE ROLE cognitive_engine_full WITH LOGIN PASSWORD 'FULL_ACCESS_PASS_CRITICAL';
+DO
+$$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'cognitive_engine_full') THEN
+        -- NOTE: This line requires substituting the actual password if running manually in pgAdmin.
+        -- When run via Docker (after init.sql), this block is skipped, so the password here doesn't matter.
+        EXECUTE 'CREATE ROLE cognitive_engine_full WITH LOGIN PASSWORD ''FULL_ACCESS_PASS_CRITICAL''';
+    END IF;
+END
+$$;
 
 -- Role 2: 'cognitive_engine_rls'
 -- Purpose: For Standard User Operations (App Service Proxy).
 -- This role MUST be used for all user-facing queries. It ENFORCES RLS.
 -- REPLACE 'ChangeThisToYourActualPassword' with the value from your .env file
-CREATE ROLE cognitive_engine_rls WITH LOGIN PASSWORD 'RLS_ACCESS_PASS_CRITICAL';
+DO
+$$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'cognitive_engine_rls') THEN
+        -- NOTE: This line requires substituting the actual password if running manually in pgAdmin.
+        EXECUTE 'CREATE ROLE cognitive_engine_rls WITH LOGIN PASSWORD ''RLS_ACCESS_PASS_CRITICAL''';
+    END IF;
+END
+$$;
 
 -- GRANT PERMISSIONS
 -- Allow these roles to connect to the specific database
