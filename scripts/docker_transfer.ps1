@@ -24,7 +24,7 @@ param(
 # --- Configuration ---
 # ProjectName is determined by your folder name (e.g., 'LifeBuddy'). 
 # We'll use 'lifebuddy' as the prefix for volumes based on previous successful commands.
-$ProjectName = "lifebuddy" 
+$ProjectName = "lifebuddy-app" 
 # Volume name is hardcoded based on your docker-compose.yml: dev_postgres_data
 $VolumeName = "$($ProjectName)_dev_postgres_data"
 $BackupFileName = "postgres_backup.tar.gz"
