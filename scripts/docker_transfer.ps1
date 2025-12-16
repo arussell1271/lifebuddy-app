@@ -11,43 +11,61 @@ Specifies the direction of the transfer:
     'From' (Backup): Stops the database container and archives the volume to a local file.
     'To' (Restore): Restores the volume from a local archive and starts the containers.
 
+.PARAMETER ComposeFilePath
+The absolute path to the docker compose configuration file (e.g., lifebuddy-app.yml).
+
 .EXAMPLE
-.\DB-Transfer.ps1 -Direction From
+# Called from manager.bat:
+# powershell.exe -File .\docker_transfer.ps1 -Direction From -ComposeFilePath "C:\path\lifebuddy-app.yml"
 #>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
     [ValidateSet('From', 'To')]
-    [string]$Direction
+    [string]$Direction,
+    
+    [Parameter(Mandatory = $true)]
+    [string]$ComposeFilePath 
 )
 
 # --- Configuration ---
-# ProjectName is determined by your folder name (e.g., 'LifeBuddy'). 
-# We'll use 'lifebuddy' as the prefix for volumes based on previous successful commands.
+# ProjectName MUST match the prefix used by your Docker volumes (lifebuddy-app).
 $ProjectName = "lifebuddy-app" 
+# FIX: Use the absolute path passed from the batch file
+$ComposeFileName = $ComposeFilePath 
 # Volume name is hardcoded based on your docker-compose.yml: dev_postgres_data
 $VolumeName = "$($ProjectName)_dev_postgres_data"
 $BackupFileName = "postgres_backup.tar.gz"
 # Backup Path: Set the path to the 'backups' directory one level up from the script's location
-$BackupPath = Join-Path -Path $PSScriptRoot -ChildPath '..\backups' # Local directory where the script is run
+$BackupPath = Join-Path -Path $PSScriptRoot -ChildPath '..\backups' 
 # ---------------------
 
 function StopAndRemoveOrphans {
     Write-Host "Stopping all project services..." -ForegroundColor Yellow
-    # Stopping services ensures the database is not actively writing to the volume
-    docker compose stop
+    # FIX: Use -p $ProjectName and -f $ComposeFileName for robustness.
+    docker compose -p $ProjectName -f $ComposeFileName stop
     
     # Use 'down' to remove containers and orphaned resources, but KEEP VOLUMES (-v is omitted)
     Write-Host "Removing containers and checking for orphans..." -ForegroundColor Yellow
-    docker compose down --remove-orphans
+    # FIX: Use -p $ProjectName and -f $ComposeFileName for robustness.
+    docker compose -p $ProjectName -f $ComposeFileName down --remove-orphans
     
     # The network warning 'Resource is still in use' (lifebuddy_core-network) can be ignored here.
 }
 
 function StartContainers {
     Write-Host "Starting all development services..." -ForegroundColor Green
-    # This uses the specific, corrected command structure to ensure all required dev services start properly.
-    docker compose -p lifebuddy up -d dev_db app cognitive-engine pgadmin open_webui ollama
+    
+    # FIX: Use parameter array (splatting) for robust external command argument passing.
+    $ComposeParams = @(
+        '-p', $ProjectName,
+        '-f', $ComposeFileName,
+        'up',
+        '-d',
+        'dev_db', 'app', 'cognitive-engine', 'pgadmin', 'open_webui', 'ollama'
+    )
+    
+    docker compose @ComposeParams
     
     # --- START OF NEW WAIT/RETRY LOGIC ---
     $OllamaReady = $false
@@ -58,8 +76,6 @@ function StartContainers {
     Write-Host "Waiting for Ollama API to be ready (up to $($MaxRetries * $WaitTimeSeconds) seconds)..." -ForegroundColor Magenta
     
     while (-not $OllamaReady -and $RetryCount -lt $MaxRetries) {
-        # Use curl to check if the Ollama API's health endpoint is reachable
-        # We use a temp container for this check since the core services might not be fully up yet.
         # Check if the service name 'ollama' is resolvable and the port is listening.
         docker compose exec ollama curl -s --fail http://ollama:11434/api/tags 2>&1 | Out-Null
 
@@ -82,14 +98,12 @@ function StartContainers {
 
     # Pull the latest Mistral model into the running Ollama container
     Write-Host "Pulling the latest Mistral model for Ollama..." -ForegroundColor Magenta
-    # Use 'docker compose exec' to run the ollama command inside the running 'ollama' service container
     docker compose exec ollama ollama pull mistral
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host "✅ Ollama model pull successful." -ForegroundColor Green
     }
     else {
-        # The ollama container might take a moment to be ready, hence the warning instead of failure.
         Write-Host "⚠️ Warning: Ollama model pull failed. Check the container logs." -ForegroundColor Yellow
     }
 }
@@ -136,8 +150,8 @@ elseif ($Direction -eq 'To') {
     StopAndRemoveOrphans
     
     Write-Host "Removing old volume data '$VolumeName' to prepare for restore..." -ForegroundColor Yellow
-    # This ensures a clean slate for the restore.
-    docker volume rm $VolumeName -ErrorAction SilentlyContinue | Out-Null
+    # FIX: Use 2>&1 | Out-Null to suppress errors and command output robustly (fixes "unknown shorthand flag: 'E'" error).
+    docker volume rm $VolumeName 2>&1 | Out-Null
     
     Write-Host "Restoring data from '$BackupFileName' to volume '$VolumeName'..." -ForegroundColor Yellow
     
