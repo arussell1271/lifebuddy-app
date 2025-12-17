@@ -68,16 +68,15 @@ echo Rebuilding and Starting Services...
 echo.
 :: Call PowerShell with -Action "rebuild"
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_DOCKER_MANAGER_SCRIPT%" -Action "rebuild" -ComposeFilePath "%PS_DOCKER_COMPOSE%" -ProfileName "%PROFILE_NAME%"
-if %errorlevel% neq 0 (
+
+:: Stable error check without parentheses
+if %errorlevel% EQU 0 goto REBUILD_SUCCESS
+    echo.
     echo !!! ERROR: Docker rebuild failed (Error Level: %errorlevel%) !!!
     pause
-)
-:: Then ensure the model is pulled (essential for the application)
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_DOCKER_MANAGER_SCRIPT%" -Action "pull_mistral" -ComposeFilePath "%PS_DOCKER_COMPOSE%" -ProfileName "%PROFILE_NAME%"
-if %errorlevel% neq 0 (
-    echo !!! WARNING: Mistral model pull failed (Error Level: %errorlevel%) !!!
-    pause
-)
+    goto MAIN_MENU
+
+:REBUILD_SUCCESS
 echo.
 pause
 goto MAIN_MENU
@@ -86,24 +85,34 @@ goto MAIN_MENU
 echo.
 echo Attempting to pull 'mistral' model in the 'ollama' container...
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_DOCKER_MANAGER_SCRIPT%" -Action "pull_mistral" -ComposeFilePath "%PS_DOCKER_COMPOSE%" -ProfileName "%PROFILE_NAME%"
-if %errorlevel% neq 0 (
+
+:: Stable error check without parentheses
+if %errorlevel% EQU 0 goto MISTRAL_SUCCESS
+    echo.
     echo !!! ERROR: Mistral model pull failed (Error Level: %errorlevel%) !!!
     pause
-)
-echo.
+    goto MAIN_MENU
+
+:MISTRAL_SUCCESS
 echo Model pull command finished.
 pause
 goto MAIN_MENU
+
 
 :STOP
 echo.
 echo Shutting Down Services...
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_DOCKER_MANAGER_SCRIPT%" -Action "stop" -ComposeFilePath "%PS_DOCKER_COMPOSE%" -ProfileName "%PROFILE_NAME%"
-if %errorlevel% neq 0 (
+
+:: Stable error check without parentheses
+if %errorlevel% EQU 0 goto SHUTDOWN_SUCCESS
+    echo.
     echo !!! ERROR: Docker stop failed (Error Level: %errorlevel%) !!!
     pause
-)
-echo.
+    goto MAIN_MENU
+
+:SHUTDOWN_SUCCESS
+echo Shutdown command finished.
 pause
 goto MAIN_MENU
 
@@ -112,13 +121,19 @@ echo.
 echo WARNING: This will remove all containers, volumes, and images ONLY related to the '%PROFILE_NAME%' project.
 pause
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_DOCKER_MANAGER_SCRIPT%" -Action "remove_project" -ComposeFilePath "%PS_DOCKER_COMPOSE%" -ProfileName "%PROFILE_NAME%"
-if %errorlevel% neq 0 (
+
+:: Stable error check without parentheses
+if %errorlevel% EQU 0 goto REMOVE_PROJECT_SUCCESS
+    echo.
     echo !!! ERROR: Project removal failed (Error Level: %errorlevel%) !!!
     pause
-)
-echo.
+    goto MAIN_MENU
+
+:REMOVE_PROJECT_SUCCESS
+echo Project Removal command finished.
 pause
 goto MAIN_MENU
+
 
 :REMOVE_ALL
 echo.
@@ -127,13 +142,19 @@ echo This will forcibly STOP AND REMOVE *ALL* containers, volumes, and images on
 echo Press any key to continue with the system-wide cleanup, or CTRL+C to cancel.
 pause
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_DOCKER_MANAGER_SCRIPT%" -Action "remove_all" -ComposeFilePath "%PS_DOCKER_COMPOSE%"
-if %errorlevel% neq 0 (
+
+:: Stable error check without parentheses
+if %errorlevel% EQU 0 goto REMOVE_ALL_SUCCESS
+    echo.
     echo !!! ERROR: System-wide cleanup failed (Error Level: %errorlevel%) !!!
     pause
-)
-echo.
+    goto MAIN_MENU
+
+:REMOVE_ALL_SUCCESS
+echo Removal All command finished.
 pause
 goto MAIN_MENU
+
 
 :: --- 2. Data & Code Transfer ---
 
@@ -142,24 +163,35 @@ echo.
 echo Starting Database Backup (FROM Docker Volume)...
 echo.
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_DOCKER_TRANSFER_SCRIPT%" -Direction From -ComposeFilePath "%PS_DOCKER_COMPOSE%"
-if %errorlevel% neq 0 (
+
+:: Stable error check without parentheses
+if %errorlevel% EQU 0 goto DB_BACKUP_SUCCESS
+    echo.
     echo !!! ERROR: Database Backup failed (Error Level: %errorlevel%) !!!
     pause
-)
-echo.
+    goto MAIN_MENU
+
+:DB_BACKUP_SUCCESS
+echo Database Backup command finished.
 pause
 goto MAIN_MENU
+
 
 :DB_RESTORE
 echo.
 echo Starting Database Restore (TO Docker Volume)...
 echo.
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_DOCKER_TRANSFER_SCRIPT%" -Direction To -ComposeFilePath "%PS_DOCKER_COMPOSE%"
-if %errorlevel% neq 0 (
+
+:: Stable error check without parentheses
+if %errorlevel% EQU 0 goto DB_RESTORE_SUCCESS
+    echo.
     echo !!! ERROR: Database Restore failed (Error Level: %errorlevel%) !!!
     pause
-)
-echo.
+    goto MAIN_MENU
+
+:DB_RESTORE_SUCCESS
+echo Database Restore command finished.
 pause
 goto MAIN_MENU
 
@@ -168,11 +200,16 @@ echo.
 echo Starting GitHub Code Upload...
 echo.
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_GITHUB_TRANSFER_SCRIPT%"
-if %errorlevel% neq 0 (
+
+:: Stable error check without parentheses
+if %errorlevel% EQU 0 goto GIT_PUSH_SUCCESS
+    echo.
     echo !!! ERROR: GitHub Push failed (Error Level: %errorlevel%) !!!
     pause
-)
-echo.
+    goto MAIN_MENU
+
+:GIT_PUSH_SUCCESS
+echo GitHub Push command finished.
 pause
 goto MAIN_MENU
 

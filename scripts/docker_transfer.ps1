@@ -61,15 +61,15 @@ function StartContainers {
         '-p', $ProjectName,
         '-f', $ComposeFileName,
         'up',
-        '-d',
-        'dev_db', 'app', 'cognitive-engine', 'pgadmin', 'open_webui', 'ollama'
+        '-d'
+        # 'dev, 'app', 'cognitive-engine', 'pgadmin', 'open_webui', 'ollama'
     )
     
     docker compose @ComposeParams
     
     # --- START OF NEW WAIT/RETRY LOGIC ---
     $OllamaReady = $false
-    $MaxRetries = 12
+    $MaxRetries = 5
     $RetryCount = 0
     $WaitTimeSeconds = 5
 
