@@ -25,7 +25,11 @@ param(
     [string]$Direction,
     
     [Parameter(Mandatory = $true)]
-    [string]$ComposeFilePath 
+    [string]$ComposeFilePath, 
+
+    # Accept the profile name
+    [Parameter(Mandatory = $true)]
+    [string]$ProfileName
 )
 
 # --- Configuration ---
@@ -34,8 +38,11 @@ $ProjectName = "lifebuddy-app"
 # FIX: Use the absolute path passed from the batch file
 $ComposeFileName = $ComposeFilePath 
 # Volume name is hardcoded based on your docker-compose.yml: dev_postgres_data
-$VolumeName = "$($ProjectName)_dev_postgres_data"
-$BackupFileName = "postgres_backup.tar.gz"
+# If profile is dev, use dev_postgres_data. If prod, use prod_postgres_data.
+$InternalVolumeName = if ($ProfileName -eq "dev") { "dev_postgres_data" } else { "prod_postgres_data" }
+$VolumeName = "${FullProjectName}_${InternalVolumeName}"
+
+$BackupFileName = "postgres_backup_$($ProfileName).tar.gz" # Profile-specific backup file
 # Backup Path: Set the path to the 'backups' directory one level up from the script's location
 $BackupPath = Join-Path -Path $PSScriptRoot -ChildPath '..\backups' 
 # ---------------------
@@ -46,26 +53,17 @@ function StopAndRemoveOrphans {
     docker compose -p $ProjectName -f $ComposeFileName stop
     
     # Use 'down' to remove containers and orphaned resources, but KEEP VOLUMES (-v is omitted)
-    Write-Host "Removing containers and checking for orphans..." -ForegroundColor Yellow
-    # FIX: Use -p $ProjectName and -f $ComposeFileName for robustness.
-    docker compose -p $ProjectName -f $ComposeFileName down --remove-orphans
+    Write-Host "Shutting down services for profile '$ProfileName' to ensure data consistency..." -ForegroundColor Yellow
+    # Added -p for project isolation and --profile to target the right services
+    docker compose -f $ComposeFileName -p "lifebuddy-$ProfileName" --profile $ProfileName down --remove-orphans
     
     # The network warning 'Resource is still in use' (lifebuddy_core-network) can be ignored here.
 }
 
 function StartContainers {
-    Write-Host "Starting all development services..." -ForegroundColor Green
-    
-    # FIX: Use parameter array (splatting) for robust external command argument passing.
-    $ComposeParams = @(
-        '-p', $ProjectName,
-        '-f', $ComposeFileName,
-        'up',
-        '-d'
-        # 'dev, 'app', 'cognitive-engine', 'pgadmin', 'open_webui', 'ollama'
-    )
-    
-    docker compose @ComposeParams
+    Write-Host "Restarting services for profile '$ProfileName'..." -ForegroundColor Cyan
+    # Added -p and --profile to ensure the correct environment starts back up
+    docker compose -f $ComposeFileName -p "lifebuddy-$ProfileName" --profile $ProfileName up -d
     
     # --- START OF NEW WAIT/RETRY LOGIC ---
     $OllamaReady = $false

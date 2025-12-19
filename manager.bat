@@ -162,7 +162,7 @@ goto MAIN_MENU
 echo.
 echo Starting Database Backup (FROM Docker Volume)...
 echo.
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_DOCKER_TRANSFER_SCRIPT%" -Direction From -ComposeFilePath "%PS_DOCKER_COMPOSE%"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_DOCKER_TRANSFER_SCRIPT%" -Direction From -ComposeFilePath "%PS_DOCKER_COMPOSE%" -ProfileName "%PROFILE_NAME%"
 
 :: Stable error check without parentheses
 if %errorlevel% EQU 0 goto DB_BACKUP_SUCCESS
@@ -181,7 +181,7 @@ goto MAIN_MENU
 echo.
 echo Starting Database Restore (TO Docker Volume)...
 echo.
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_DOCKER_TRANSFER_SCRIPT%" -Direction To -ComposeFilePath "%PS_DOCKER_COMPOSE%"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_DOCKER_TRANSFER_SCRIPT%" -Direction To -ComposeFilePath "%PS_DOCKER_COMPOSE%" -ProfileName "%PROFILE_NAME%"
 
 :: Stable error check without parentheses
 if %errorlevel% EQU 0 goto DB_RESTORE_SUCCESS
