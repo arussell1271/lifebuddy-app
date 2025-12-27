@@ -65,7 +65,7 @@ function StartContainers {
     # Added -p and --profile to ensure the correct environment starts back up
     docker compose -f $ComposeFileName -p $ProjectName --profile $ProfileName up -d
 
-    docker volume prune
+    docker volume prune -f
         
     # --- START OF NEW WAIT/RETRY LOGIC ---
     # $OllamaReady = $false
