@@ -40,7 +40,7 @@ $ComposeFileName = $ComposeFilePath
 # Volume name is hardcoded based on your docker-compose.yml: dev_postgres_data
 # If profile is dev, use dev_postgres_data. If prod, use prod_postgres_data.
 $InternalVolumeName = if ($ProfileName -eq "dev") { "dev_postgres_data" } else { "prod_postgres_data" }
-$VolumeName = "${FullProjectName}_${InternalVolumeName}"
+$VolumeName = "${ProjectName}_${InternalVolumeName}"
 
 $BackupFileName = "postgres_backup_$($ProfileName).tar.gz" # Profile-specific backup file
 # Backup Path: Set the path to the 'backups' directory one level up from the script's location
@@ -55,7 +55,7 @@ function StopAndRemoveOrphans {
     # Use 'down' to remove containers and orphaned resources, but KEEP VOLUMES (-v is omitted)
     Write-Host "Shutting down services for profile '$ProfileName' to ensure data consistency..." -ForegroundColor Yellow
     # Added -p for project isolation and --profile to target the right services
-    docker compose -f $ComposeFileName -p "lifebuddy-$ProfileName" --profile $ProfileName down --remove-orphans
+    docker compose -f $ComposeFileName -p $ProjectName --profile $ProfileName down --remove-orphans
     
     # The network warning 'Resource is still in use' (lifebuddy_core-network) can be ignored here.
 }
@@ -63,47 +63,47 @@ function StopAndRemoveOrphans {
 function StartContainers {
     Write-Host "Restarting services for profile '$ProfileName'..." -ForegroundColor Cyan
     # Added -p and --profile to ensure the correct environment starts back up
-    docker compose -f $ComposeFileName -p "lifebuddy-$ProfileName" --profile $ProfileName up -d
-    
+    docker compose -f $ComposeFileName -p $ProjectName --profile $ProfileName up -d
+        
     # --- START OF NEW WAIT/RETRY LOGIC ---
-    $OllamaReady = $false
-    $MaxRetries = 5
-    $RetryCount = 0
-    $WaitTimeSeconds = 5
+    # $OllamaReady = $false
+    # $MaxRetries = 5
+    # $RetryCount = 0
+    # $WaitTimeSeconds = 5
 
-    Write-Host "Waiting for Ollama API to be ready (up to $($MaxRetries * $WaitTimeSeconds) seconds)..." -ForegroundColor Magenta
+    # Write-Host "Waiting for Ollama API to be ready (up to $($MaxRetries * $WaitTimeSeconds) seconds)..." -ForegroundColor Magenta
     
-    while (-not $OllamaReady -and $RetryCount -lt $MaxRetries) {
-        # Check if the service name 'ollama' is resolvable and the port is listening.
-        docker compose exec ollama curl -s --fail http://ollama:11434/api/tags 2>&1 | Out-Null
+    # while (-not $OllamaReady -and $RetryCount -lt $MaxRetries) {
+    # Check if the service name 'ollama' is resolvable and the port is listening.
+    # docker compose exec ollama curl -s --fail http://ollama:11434/api/tags 2>&1 | Out-Null
 
-        if ($LASTEXITCODE -eq 0) {
-            $OllamaReady = $true
-            Write-Host "✅ Ollama API is ready." -ForegroundColor Green
-        }
-        else {
-            $RetryCount++
-            Write-Host "Ollama not ready. Retrying in $($WaitTimeSeconds)s... (Attempt $($RetryCount)/$MaxRetries)" -ForegroundColor Yellow
-            Start-Sleep -Seconds $WaitTimeSeconds
-        }
-    }
+    # if ($LASTEXITCODE -eq 0) {
+    #     $OllamaReady = $true
+    #     Write-Host "✅ Ollama API is ready." -ForegroundColor Green
+    # }
+    # else {
+    #     $RetryCount++
+    #     Write-Host "Ollama not ready. Retrying in $($WaitTimeSeconds)s... (Attempt $($RetryCount)/$MaxRetries)" -ForegroundColor Yellow
+    #     Start-Sleep -Seconds $WaitTimeSeconds
+    # }
+    # }
     
-    if (-not $OllamaReady) {
-        Write-Host "❌ Error: Ollama API failed to start after multiple retries. Skipping model pull." -ForegroundColor Red
-        return # Exit the function early if Ollama isn't ready
-    }
+    # if (-not $OllamaReady) {
+    #     Write-Host "❌ Error: Ollama API failed to start after multiple retries. Skipping model pull." -ForegroundColor Red
+    #     return # Exit the function early if Ollama isn't ready
+    # }
     # --- END OF NEW WAIT/RETRY LOGIC ---
 
     # Pull the latest Mistral model into the running Ollama container
-    Write-Host "Pulling the latest Mistral model for Ollama..." -ForegroundColor Magenta
-    docker compose exec ollama ollama pull mistral
+    # Write-Host "Pulling the latest Mistral model for Ollama..." -ForegroundColor Magenta
+    # docker compose exec ollama ollama pull mistral
     
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host "✅ Ollama model pull successful." -ForegroundColor Green
-    }
-    else {
-        Write-Host "⚠️ Warning: Ollama model pull failed. Check the container logs." -ForegroundColor Yellow
-    }
+    # if ($LASTEXITCODE -eq 0) {
+    #     Write-Host "✅ Ollama model pull successful." -ForegroundColor Green
+    # }
+    # else {
+    #     Write-Host "⚠️ Warning: Ollama model pull failed. Check the container logs." -ForegroundColor Yellow
+    # }
 }
 
 if ($Direction -eq 'From') {
@@ -130,6 +130,7 @@ if ($Direction -eq 'From') {
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host "✅ Backup successful! Data saved to $($BackupPath)\$($BackupFileName)" -ForegroundColor Green
+        StartContainers
     }
     else {
         Write-Host "❌ Backup failed. Check Docker logs." -ForegroundColor Red
