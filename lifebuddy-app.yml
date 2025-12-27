@@ -97,6 +97,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.engine # <-- NOW USES THE FULL ENGINE IMAGE
+    ports:
+      - "8001:8001"
     env_file:
       - .env.dev
     command: gunicorn engine.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.00.0.0:8001
