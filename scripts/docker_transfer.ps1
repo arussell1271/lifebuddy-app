@@ -64,6 +64,8 @@ function StartContainers {
     Write-Host "Restarting services for profile '$ProfileName'..." -ForegroundColor Cyan
     # Added -p and --profile to ensure the correct environment starts back up
     docker compose -f $ComposeFileName -p $ProjectName --profile $ProfileName up -d
+
+    docker volume prune
         
     # --- START OF NEW WAIT/RETRY LOGIC ---
     # $OllamaReady = $false
