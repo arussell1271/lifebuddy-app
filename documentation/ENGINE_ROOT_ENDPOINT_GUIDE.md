@@ -7,7 +7,7 @@
 
 ## What Has Been Delivered
 
-### 1. **Complete Engine API Reference Document** 
+### 1. **Complete Engine API Reference Document**
 📄 File: [documentation/10 engine api reference.md](../documentation/10 engine api reference.md)
 
 **Contains**:
@@ -222,7 +222,7 @@ When implementing, log these events:
 
 ### Landing Page Not Loading
 **Problem**: `http://localhost:8001` shows 404 or blank page  
-**Solution**: 
+**Solution**:
 1. Verify Engine service is running: `docker logs engine`
 2. Check if root endpoint is implemented: `docker exec engine python -c "from main import app; print(app.routes)"`
 3. Verify FastAPI app is listening on port 8001: `netstat -tuln | grep 8001`
@@ -243,7 +243,7 @@ When implementing, log these events:
 
 ### Rate Limiting Not Working
 **Problem**: `http://localhost:8001` accepts unlimited requests  
-**Solution**: 
+**Solution**:
 1. Implement rate limiting middleware (slowapi library recommended)
 2. Configure in `.env`: `RATE_LIMIT_ENABLED=true`, `RATE_LIMIT_PER_MINUTE=60`
 3. Test with: `for i in {1..100}; do curl http://localhost:8001/; done`
