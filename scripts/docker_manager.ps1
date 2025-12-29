@@ -17,7 +17,7 @@ disable=PSUseApprovedVerbs
 ## 🚀 Execution Function - Entry Point
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet("rebuild", "rebuild_app_engine", "pull_mistral", "stop", "remove_all", "remove_project")]
+    [ValidateSet("rebuild", "rebuild_app_engine", "pull_mistral", "stop", "remove_all", "remove_project", "apply_schema")]
     [string]$Action,
     
     # New parameter to accept the full path to the docker-compose file
@@ -25,7 +25,10 @@ param(
     [string]$ComposeFilePath, 
 
     # Parameter to accept the profile name (e.g., 'dev' or 'prod')
-    [string]$ProfileName 
+    [string]$ProfileName,
+    
+    # Optional parameter for schema file path (used with apply_schema action)
+    [string]$SchemaFilePath
 )
 
 # -----------------------------------------------------------------------------
@@ -159,6 +162,37 @@ function Remove-ProjectDockerAssets {
     Write-Host "Project containers, volumes, and images removed." -ForegroundColor Green
 }
 
+# 6. Apply Database Schema (Execute db_schema.sql against the running database)
+function Invoke-ApplyDatabaseSchema {
+    param([string]$SchemaFilePath, [string]$ProfileName)
+    
+    Write-Host "Applying database schema from '$SchemaFilePath'..." -ForegroundColor Cyan
+    
+    # Verify the schema file exists
+    if (-not (Test-Path $SchemaFilePath)) {
+        Write-Host "ERROR: Schema file not found at: $SchemaFilePath" -ForegroundColor Red
+        exit 1
+    }
+    
+    Write-Host "Executing schema file in database container..." -ForegroundColor Green
+    
+    # Set environment variable for psql password (dev environment)
+    $env:PGPASSWORD = "admin"
+    
+    # Pipe the SQL file directly into docker exec
+    $result = Get-Content $SchemaFilePath | docker exec -i lifebuddy-db psql -U admin -d lifebuddy_dev_db 2>&1
+    
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "Database schema successfully applied." -ForegroundColor Green
+        exit 0
+    }
+    else {
+        Write-Host "ERROR: Failed to apply database schema (Exit Code: $LASTEXITCODE)" -ForegroundColor Red
+        Write-Host $result
+        exit 1
+    }
+}
+
 # -----------------------------------------------------------------------------
 ## 🚀 Execution Logic
 # -----------------------------------------------------------------------------
@@ -171,5 +205,6 @@ switch ($Action) {
     "stop" { Stop-DockerServices -ComposeFilePath $ComposeFilePath -ProfileName $ProfileName }
     "remove_all" { Remove-AllDockerAssets }
     "remove_project" { Remove-ProjectDockerAssets -ComposeFilePath $ComposeFilePath -ProfileName $ProfileName }
+    "apply_schema" { Invoke-ApplyDatabaseSchema -SchemaFilePath $SchemaFilePath -ProfileName $ProfileName }
     default { Write-Host "Invalid action specified." -ForegroundColor Red }
 }

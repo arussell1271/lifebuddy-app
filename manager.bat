@@ -35,12 +35,13 @@ echo    --- 2. Data and Code Transfer ---
 echo    7. Backup Database Volume (FROM Docker)
 echo    8. Restore Database Volume (TO Docker)
 echo    9. Upload Code to GitHub
+echo    10. Apply Database Schema (db_schema.sql)
 echo.
 echo    --- 3. Configuration and Exit ---
 echo    C. Change Profile (Current: %PROFILE_NAME%)
 echo    X. Exit Manager
 echo.
-set /p CHOICE="Enter your choice (1-9, C, X): "
+set /p CHOICE="Enter your choice (1-10, C, X): "
 
 if /i "%CHOICE%"=="1" goto REBUILD
 if /i "%CHOICE%"=="2" goto REBUILD_APP_ENGINE
@@ -52,6 +53,7 @@ if /i "%CHOICE%"=="6" goto REMOVE_ALL
 if /i "%CHOICE%"=="7" goto DB_BACKUP
 if /i "%CHOICE%"=="8" goto DB_RESTORE
 if /i "%CHOICE%"=="9" goto GITHUB_PUSH
+if /i "%CHOICE%"=="10" goto APPLY_SCHEMA
 
 if /i "%CHOICE%"=="C" goto CHANGE_PROFILE
 if /i "%CHOICE%"=="X" goto END
@@ -230,6 +232,33 @@ if %errorlevel% EQU 0 goto GIT_PUSH_SUCCESS
 
 :GIT_PUSH_SUCCESS
 echo GitHub Push command finished.
+pause
+goto MAIN_MENU
+
+:APPLY_SCHEMA
+echo.
+echo Applying Database Schema (db_schema.sql)...
+echo.
+set "SCHEMA_FILE=%PROJECT_ROOT%documentation\03 db_schema.sql"
+
+if not exist "%SCHEMA_FILE%" (
+    echo.
+    echo !!! ERROR: Schema file not found at: %SCHEMA_FILE% !!!
+    pause
+    goto MAIN_MENU
+)
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_DOCKER_MANAGER_SCRIPT%" -Action "apply_schema" -ComposeFilePath "%PS_DOCKER_COMPOSE%" -ProfileName "%PROFILE_NAME%" -SchemaFilePath "%SCHEMA_FILE%"
+
+:: Stable error check without parentheses
+if %errorlevel% EQU 0 goto APPLY_SCHEMA_SUCCESS
+    echo.
+    echo !!! ERROR: Schema application failed (Error Level: %errorlevel%) !!!
+    pause
+    goto MAIN_MENU
+
+:APPLY_SCHEMA_SUCCESS
+echo.
 pause
 goto MAIN_MENU
 
