@@ -1,4 +1,4 @@
-﻿# AI Coding Agent Instructions: Life Buddy
+# AI Coding Agent Instructions: Life Buddy
 
 ## Architecture Overview
 
@@ -35,12 +35,12 @@
 ## Essential Files & Data Flows
 
 ### Schema & Security
-- [Database Schema](../documentation/03 db_schema.sql) - Defines RLS policies, user roles, and tables. **Key**: `cognitive_engine_full` (admin) and `cognitive_engine_rls` (enforces RLS).
-- [Infrastructure Setup](../documentation/02 infratructure setup.md) - Network isolation, port mappings, mandatory env vars (JWT_SECRET_KEY, JWT_ALGORITHM, APP_SECRET_KEY).
+- [Database Schema`documentation/03 db_schema.sql` - Defines RLS policies, user roles, and tables. **Key**: `cognitive_engine_full` (admin) and `cognitive_engine_rls` (enforces RLS).
+- [Infrastructure Setup`documentation/02 infratructure setup.md` - Network isolation, port mappings, mandatory env vars (JWT_SECRET_KEY, JWT_ALGORITHM, APP_SECRET_KEY).
 
 ### Execution & Patterns
-- [Standards Guide](../documentation/04 standards guide.md) - Naming conventions, service responsibilities, RLS dual-mode enforcement, JSON serialization for `*_json` fields, 4-day data retention.
-- [UI Technical Specs](../documentation/06 ui technical specifications.md) - API contracts, async job pattern, RLS enforcement in endpoints.
+- [Standards Guide`documentation/04 standards guide.md` - Naming conventions, service responsibilities, RLS dual-mode enforcement, JSON serialization for `*_json` fields, 4-day data retention.
+- [UI Technical Specs`documentation/06 ui technical specifications.md` - API contracts, async job pattern, RLS enforcement in endpoints.
 
 ### Configuration
 - `.env.dev` / `.env.prod`: Environment variables (never commit secrets).
@@ -66,8 +66,8 @@ docker compose down --remove-orphans
 ```
 
 ### Scripts
-- [docker_manager.ps1](../scripts/docker_manager.ps1): PowerShell wrapper for compose commands (rebuild, stop, pull_mistral).
-- [docker_transfer.ps1](../scripts/docker_transfer.ps1): Volume and data transfer utilities.
+- [docker_manager.ps1`scripts/docker_manager.ps1`: PowerShell wrapper for compose commands (rebuild, stop, pull_mistral).
+- [docker_transfer.ps1`scripts/docker_transfer.ps1`: Volume and data transfer utilities.
 
 ### Testing & Debugging
 - Check logs: `docker logs <service-name>`
@@ -86,18 +86,18 @@ docker compose down --remove-orphans
 ### During Development (After Each Feature)
 
 1. **Update Relevant Documentation Files**
-   - If modifying API endpoints → Update [06 ui technical specifications.md](../documentation/06 ui technical specifications.md)
-   - If changing database schema → Update [03 db_schema.sql](../documentation/03 db_schema.sql)
-   - If modifying synthesis logic → Update [07 engine logic specifications.md](../documentation/07 engine logic specifications.md)
-   - If adding new error codes → Update [04 standards guide.md](../documentation/04 standards guide.md)
+   - If modifying API endpoints → Update `documentation/06 ui technical specifications.md`
+   - If changing database schema → Update `documentation/03 db_schema.sql`
+   - If modifying synthesis logic → Update `documentation/07 engine logic specifications.md`
+   - If adding new error codes → Update `documentation/04 standards guide.md`
 
 2. **Update Copilot Instructions (If Architecture Changes)**
    - Major changes to service responsibilities? → Update this file (.github/copilot-instructions.md)
    - New patterns or conventions? → Add to Code Patterns section
 
 3. **Update Summary Files** (in `summaries/` directory)
-   - Update [README_DOCUMENTATION.md](../summaries/README_DOCUMENTATION.md) to reflect new docs or changes
-   - Update [IMPLEMENTATION_READY.md](../summaries/IMPLEMENTATION_READY.md) with current status
+   - Update `summaries/README_DOCUMENTATION.md` to reflect new docs or changes
+   - Update `summaries/IMPLEMENTATION_READY.md` with current status
    - Use these as your checklist—check off each item as it's implemented
 
 ### Before Finalizing Code (Pre-Commit Checklist)
@@ -116,11 +116,11 @@ docker compose down --remove-orphans
 - [ ] All error codes mentioned in code are documented in standards guide
 
 **VERIFICATION STEP 3: Summaries Review** (Your Quality Gate!)
-1. Open [IMPLEMENTATION_READY.md](../summaries/IMPLEMENTATION_READY.md)
+1. Open `summaries/IMPLEMENTATION_READY.md`
    - Is the feature you built listed? ✅
    - Is the status accurate? ✅
    
-2. Open [README_DOCUMENTATION.md](../summaries/README_DOCUMENTATION.md)
+2. Open `summaries/README_DOCUMENTATION.md`
    - Are all related documentation files listed? ✅
    - Are the links working? ✅
 
@@ -140,9 +140,9 @@ docker compose down --remove-orphans
 ### Quarterly Documentation Audit
 
 Review all documentation quarterly to ensure it reflects the current system:
-- Check [DOCUMENTATION_MANIFEST.md](../documentation/DOCUMENTATION_MANIFEST.md) for outdated entries
-- Verify all API endpoints in [10 engine api reference.md](../documentation/10 engine api reference.md) match code
-- Review database schema for changes not reflected in [03 db_schema.sql](../documentation/03 db_schema.sql)
+- Check `documentation/DOCUMENTATION_MANIFEST.md` for outdated entries
+- Verify all API endpoints in `documentation/10 engine api reference.md` match code
+- Review database schema for changes not reflected in `documentation/03 db_schema.sql`
 - Update copilot-instructions.md with any architectural lessons learned
 
 ### Summary Files as Living Checklists
@@ -151,11 +151,11 @@ The files in `summaries/` are NOT static reports—they are **active verificatio
 
 | File | Use Case | When to Check |
 |------|----------|---------------|
-| **IMPLEMENTATION_READY.md** | Feature completion checklist | Before each commit, mark completed items |
-| **README_DOCUMENTATION.md** | Documentation completeness | Before release, verify all areas documented |
-| **DELIVERY_SUMMARY.md** | What was built | At feature milestone reviews |
-| **PROBLEMS_FIXED_REPORT.md** | Known issues & solutions | When similar errors occur during development |
-| **SOLUTION_SUMMARY.md** | Quick troubleshooting reference | When debugging problems |
+| `IMPLEMENTATION_READY.md` | Feature completion checklist | Before each commit, mark completed items |
+| `README_DOCUMENTATION.md` | Documentation completeness | Before release, verify all areas documented |
+| `DELIVERY_SUMMARY.md` | What was built | At feature milestone reviews |
+| `PROBLEMS_FIXED_REPORT.md` | Known issues & solutions | When similar errors occur during development |
+| `SOLUTION_SUMMARY.md` | Quick troubleshooting reference | When debugging problems |
 
 ---
 
@@ -270,7 +270,7 @@ Users manage all advisor/theme settings from single preferences panel:
 - **`user_preferences.synthesis_matrix` (JSONB)**: User defines which advisors interact and how data is weighted.
 - **Engine Interpretation**: During synthesis, Engine respects the matrix to prioritize/exclude data sources.
 - **Example**: `{"cultivate_enabled": true, "cultivate_weight": 0.6, "execute_weight": 0.3, "contribute_weight": 0.1}`.
-- **See**: [04 standards guide.md](../documentation/04 standards guide.md) (JSON Serialization Standard).
+- **See**: [04 standards guide.md`documentation/04 standards guide.md` (JSON Serialization Standard).
 
 ### Daily Cognitive Check (Gating Mechanism)
 - **`pre_synthesis_questions` table**: Global, non-RLS list of mandatory questions for CULTIVATE/EXECUTE/CONTRIBUTE phases.
@@ -278,7 +278,7 @@ Users manage all advisor/theme settings from single preferences panel:
 - **`pre_synthesis_answers` table**: Stores user responses with 4-day retention.
 - **Flow**: App blocks main chat until all questions for the day are answered → Engine can then synthesize.
 - **Implicit Completion**: Engine analyzes incoming chat text to auto-mark questions answered (if user mentions "I slept 6 hours" in conversation).
-- **See**: [06 ui technical specifications.md](../documentation/06 ui technical specifications.md) (Daily Check Flow) and [07 engine logic specifications.md](../documentation/07 engine logic specifications.md) (Synthesis Logic).
+- **See**: [06 ui technical specifications.md`documentation/06 ui technical specifications.md` (Daily Check Flow) and [07 engine logic specifications.md`documentation/07 engine logic specifications.md` (Synthesis Logic).
 
 ### Synthesis Process (Cultivate → Execute → Contribute)
 1. **CULTIVATE**: Analyze new DREAM/SPIRITUAL documents via LLM (extract theme, emotion). Compare vectors against historical synthesis to compute DFC. If DFC > 3 in 7 days → "Limiting Subconscious Misalignment." If DFC > 5 in 14 days → "Spiritual Disalignment."
@@ -306,14 +306,14 @@ Users manage all advisor/theme settings from single preferences panel:
 - **App Service Responsibilities**: Auth gateway, CRUD proxying, async job queueing, JWT validation, RLS context passing.
 - **Engine Service**: Processes all logic; both web and mobile clients receive identical responses.
 - **No Mobile-Specific Endpoints**: Keep API response formats consistent; client-side UI adapts (responsive design via Tailwind).
-- **See**: [06 ui technical specifications.md](../documentation/06 ui technical specifications.md) (API Contracts) for full endpoint definitions.
+- **See**: [06 ui technical specifications.md`documentation/06 ui technical specifications.md` (API Contracts) for full endpoint definitions.
 
 ---
 
 ## Engine Synthesis Workflow (Detailed)
 
 ### CULTIVATE Phase: Dream/Spiritual Analysis
-**File**: [07 engine logic specifications.md](../documentation/07 engine logic specifications.md)
+**File**: [07 engine logic specifications.md`documentation/07 engine logic specifications.md`
 
 1. **Input**: All new `documents` with `document_type IN ('DREAM', 'JOURNAL', 'SPIRITUAL')` since last synthesis.
 2. **LLM Task**: Extract **dominant emotion** and **core subconscious theme** (e.g., "Lack of self-worth", "Fear of commitment").
@@ -373,7 +373,7 @@ Users manage all advisor/theme settings from single preferences panel:
 
 ## Async Job Pattern (Synthesis, Reports)
 
-**File**: [07 engine logic specifications.md](../documentation/07 engine logic specifications.md) - Section VI
+**File**: [07 engine logic specifications.md`documentation/07 engine logic specifications.md` - Section VI
 
 ### Job Polling (Exponential Backoff)
 - **Initial Delay**: 1000ms (1 second)
@@ -418,7 +418,7 @@ When accessed via browser (`http://localhost:8001`), the Engine returns an HTML 
 
 **Purpose**: Prevent casual browser discovery of internal service while providing authorized users (administrators, developers) with immediate access to API documentation.
 
-**See**: [10 engine api reference.md](../documentation/10 engine api reference.md) for complete API endpoint list and landing page HTML template.
+**See**: [10 engine api reference.md`documentation/10 engine api reference.md` for complete API endpoint list and landing page HTML template.
 
 ---
 
@@ -562,20 +562,20 @@ All error responses **MUST** follow this format:
 ## Documentation Stack
 
 ### Core System Design
-- **[01 Project Definition](../documentation/01 project definition.md)**: Business goals, hypotheses (H1/H2/H3), philosophical framework
-- **[02 Infrastructure Setup](../documentation/02 infratructure setup.md)**: Network isolation, service architecture, ports, environment variables
-- **[03 Database Schema](../documentation/03 db_schema.sql)**: RLS policies, table definitions, indexes, constraints
+- **[01 Project Definition`documentation/01 project definition.md`**: Business goals, hypotheses (H1/H2/H3), philosophical framework
+- **[02 Infrastructure Setup`documentation/02 infratructure setup.md`**: Network isolation, service architecture, ports, environment variables
+- **[03 Database Schema`documentation/03 db_schema.sql`**: RLS policies, table definitions, indexes, constraints
 
 ### Implementation Guides
-- **[04 Standards Guide](../documentation/04 standards guide.md)**: Naming conventions, service responsibilities, data serialization, retention policies
-- **[05 Functionality Guide](../documentation/05 functionality guide.md)**: User flows, business rules, feature descriptions (non-technical)
-- **[06 UI Technical Specs](../documentation/06 ui technical specifications.md)**: API contracts, response schemas, daily check flow, async patterns
-- **[07 Engine Logic Specifications](../documentation/07 engine logic specifications.md)**: Synthesis algorithms, DFC calculation, hypothesis validation
+- **[04 Standards Guide`documentation/04 standards guide.md`**: Naming conventions, service responsibilities, data serialization, retention policies
+- **[05 Functionality Guide`documentation/05 functionality guide.md`**: User flows, business rules, feature descriptions (non-technical)
+- **[06 UI Technical Specs`documentation/06 ui technical specifications.md`**: API contracts, response schemas, daily check flow, async patterns
+- **[07 Engine Logic Specifications`documentation/07 engine logic specifications.md`**: Synthesis algorithms, DFC calculation, hypothesis validation
 
 ### Operations & Deployment
-- **[08 DevOps Deployment Guide](../documentation/08 devops deployment guide.md)**: Build/deploy procedures, backup/restore, security hardening, troubleshooting
-- **[09 LLM Prompts & Advisor Config](../documentation/09 llm prompts advisor config.md)**: System prompts, mode/tone modifiers, user custom questions, prompt management
-- **[10 Engine API Reference](../documentation/10 engine api reference.md)**: Complete Engine endpoint documentation, landing page specification, security notice
+- **[08 DevOps Deployment Guide`documentation/08 devops deployment guide.md`**: Build/deploy procedures, backup/restore, security hardening, troubleshooting
+- **[09 LLM Prompts & Advisor Config`documentation/09 llm prompts advisor config.md`**: System prompts, mode/tone modifiers, user custom questions, prompt management
+- **[10 Engine API Reference`documentation/10 engine api reference.md`**: Complete Engine endpoint documentation, landing page specification, security notice
 
 ### Supporting Resources
-- **[Docker Commands Reference](../helpful_command_lines/Docker Commands.md)**: Quick Docker operations
+- **[Docker Commands Reference`helpful_command_lines/Docker Commands.md`**: Quick Docker operations

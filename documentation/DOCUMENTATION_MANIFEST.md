@@ -1,4 +1,4 @@
-# 📚 Documentation Manifest & Update Log
+# ðŸ“š Documentation Manifest & Update Log
 
 **Purpose**: Track all documentation files and changes to ensure consistency and completeness across the project.
 
@@ -12,29 +12,29 @@
 ### Tier 1: Strategic Docs (Read First)
 | File | Purpose | Audience | Status |
 |------|---------|----------|--------|
-| [01 project definition.md](../documentation/01 project definition.md) | Business goals, hypotheses, philosophy | Leadership, All Team | ✅ Complete |
-| [02 infrastructure setup.md](../documentation/02 infratructure setup.md) | Network isolation, service ports, env vars | DevOps, Architects | ✅ Complete |
-| [03 db_schema.sql](../documentation/03 db_schema.sql) | Database DDL, RLS policies, constraints | Backend, DBAs | ✅ Complete |
+| [01 project definition.md`documentation/01 project definition.md` | Business goals, hypotheses, philosophy | Leadership, All Team | âœ… Complete |
+| [02 infrastructure setup.md`documentation/02 infratructure setup.md` | Network isolation, service ports, env vars | DevOps, Architects | âœ… Complete |
+| [03 db_schema.sql`documentation/03 db_schema.sql` | Database DDL, RLS policies, constraints | Backend, DBAs | âœ… Complete |
 
 ### Tier 2: Implementation Docs (Reference During Build)
 | File | Purpose | Audience | Status |
 |------|---------|----------|--------|
-| [04 standards guide.md](../documentation/04 standards guide.md) | Naming, patterns, data retention | All Developers | ✅ Complete |
-| [05 functionality guide.md](../documentation/05 functionality guide.md) | User flows, business rules (non-technical) | Product, QA, Design | ✅ Complete |
-| [06 ui technical specifications.md](../documentation/06 ui technical specifications.md) | API contracts, async patterns, daily check | Frontend, Backend | ✅ Complete |
-| [07 engine logic specifications.md](../documentation/07 engine logic specifications.md) | Synthesis logic, DFC, H1/H2/H3 validation | AI/ML, Backend | ✅ Complete |
+| [04 standards guide.md`documentation/04 standards guide.md` | Naming, patterns, data retention | All Developers | âœ… Complete |
+| [05 functionality guide.md`documentation/05 functionality guide.md` | User flows, business rules (non-technical) | Product, QA, Design | âœ… Complete |
+| [06 ui technical specifications.md`documentation/06 ui technical specifications.md` | API contracts, async patterns, daily check | Frontend, Backend | âœ… Complete |
+| [07 engine logic specifications.md`documentation/07 engine logic specifications.md` | Synthesis logic, DFC, H1/H2/H3 validation | AI/ML, Backend | âœ… Complete |
 
 ### Tier 3: Operations & Deployment Docs (During DevOps/Deployment)
 | File | Purpose | Audience | Status |
 |------|---------|----------|--------|
-| [08 devops deployment guide.md](../documentation/08 devops deployment guide.md) | Build, deploy, backup, scaling, security | DevOps, Release Engineers | ✅ Complete |
-| [09 llm prompts advisor config.md](../documentation/09 llm prompts advisor config.md) | System prompts, mode/tone modifiers, custom questions | AI Engineers, Prompt Engineers | ✅ Complete |
-| [10 engine api reference.md](../documentation/10 engine api reference.md) | Complete Engine API endpoint documentation, landing page spec, security notice | Developers, AI Agents, Architects | ✅ Complete |
+| [08 devops deployment guide.md`documentation/08 devops deployment guide.md` | Build, deploy, backup, scaling, security | DevOps, Release Engineers | âœ… Complete |
+| [09 llm prompts advisor config.md`documentation/09 llm prompts advisor config.md` | System prompts, mode/tone modifiers, custom questions | AI Engineers, Prompt Engineers | âœ… Complete |
+| [10 engine api reference.md`documentation/10 engine api reference.md` | Complete Engine API endpoint documentation, landing page spec, security notice | Developers, AI Agents, Architects | âœ… Complete |
 
 ### AI Agent Guidance
 | File | Purpose | Audience | Status |
 |------|---------|----------|--------|
-| [.github/copilot-instructions.md](../.github/copilot-instructions.md) | AI agent coding instructions (main reference) | AI Agents, Developers | ✅ Complete |
+| [.github/copilot-instructions.md`.github/copilot-instructions.md` | AI agent coding instructions (main reference) | AI Agents, Developers | âœ… Complete |
 
 ---
 
@@ -43,13 +43,13 @@
 ### December 29, 2025 - Initial Documentation Completion
 
 **Added Files**:
-- ✅ `08 devops deployment guide.md` - Complete DevOps workflow, backup/restore, scaling, security hardening
-- ✅ `09 llm prompts advisor config.md` - LLM system prompts, advisor templates, mode/tone modifiers, user custom questions
-- ✅ `10 engine api reference.md` - Complete Engine API reference, landing page HTML template, security notice, endpoint listing
-- ✅ `.github/copilot-instructions.md` - AI agent reference document (updated with error handling, deployment stage, admin prompt management)
+- âœ… `08 devops deployment guide.md` - Complete DevOps workflow, backup/restore, scaling, security hardening
+- âœ… `09 llm prompts advisor config.md` - LLM system prompts, advisor templates, mode/tone modifiers, user custom questions
+- âœ… `10 engine api reference.md` - Complete Engine API reference, landing page HTML template, security notice, endpoint listing
+- âœ… `.github/copilot-instructions.md` - AI agent reference document (updated with error handling, deployment stage, admin prompt management)
 
 **Updated Files**:
-- ✅ `.github/copilot-instructions.md` - Added:
+- âœ… `.github/copilot-instructions.md` - Added:
   - Engine root endpoint specification (GET / with security notice and API listing)
   - Deployment stage (MVP: responsive web, Future: iOS/Android)
   - Admin prompt management & user customization
@@ -75,21 +75,21 @@
 - [ ] Verify all inter-document links are correct
 - [ ] Confirm database schema matches standards guide
 - [ ] Test DevOps scripts with sample data
-- [ ] Review [IMPLEMENTATION_READY.md](../summaries/IMPLEMENTATION_READY.md) for what's being built
+- [ ] Review `summaries/IMPLEMENTATION_READY.md` for what's being built
 
 ### During Implementation
 - [ ] Update relevant docs within 24 hours of code changes
 - [ ] Track all API endpoint changes in section 06
 - [ ] Document all new database tables/columns in section 03
 - [ ] Log all new error codes in this manifest
-- [ ] Update [README_DOCUMENTATION.md](../summaries/README_DOCUMENTATION.md) with new documentation
-- [ ] Mark progress in [IMPLEMENTATION_READY.md](../summaries/IMPLEMENTATION_READY.md)
+- [ ] Update `summaries/README_DOCUMENTATION.md` with new documentation
+- [ ] Mark progress in `summaries/IMPLEMENTATION_READY.md`
 
-### Before Finalizing Code (Pre-Commit)
-- [ ] Run error check: `Ctrl+Shift+M` in VS Code (expect 0 errors)
+### Before Finalizing Code (Pre-Commit) âš ï¸ CRITICAL
+- [ ] **Run error check: `Ctrl+Shift+M` in VS Code (expect 0 errors)** - FIX ANY ERRORS BEFORE COMMITTING
 - [ ] Verify all documentation links resolve correctly
-- [ ] Check [IMPLEMENTATION_READY.md](../summaries/IMPLEMENTATION_READY.md) - all features listed and marked?
-- [ ] Check [README_DOCUMENTATION.md](../summaries/README_DOCUMENTATION.md) - all related docs linked?
+- [ ] Check `summaries/IMPLEMENTATION_READY.md` - all features listed and marked?
+- [ ] Check `summaries/README_DOCUMENTATION.md` - all related docs linked?
 - [ ] Confirm no broken cross-references between documentation files
 - [ ] Verify all error codes in code match documentation in standards guide
 
@@ -110,20 +110,71 @@
 
 ---
 
+## Error Prevention Strategy (MANDATORY FOR ALL COMMITS)
+
+### Before Every Commit: Zero-Error Verification
+
+**REQUIRED**: Every developer **MUST** verify zero documentation errors before committing code or documentation changes.
+
+**Step 1: Run Error Check**
+```powershell
+# Open VS Code Problems Panel
+Ctrl+Shift+M
+
+# Expected: "No errors found" or empty panel
+# If errors appear â†’ DO NOT COMMIT until fixed
+```
+
+**Step 2: Fix Any Errors That Appear**
+
+Common error causes:
+- âŒ Broken markdown links: `[text](./wrong/path.md)` â†’ âœ… Use file path in code format: `` `documentation/correct/path.md` ``
+- âŒ Misspelled file names in links
+- âŒ Missing or extra spaces in file paths
+- âŒ Inconsistent directory structure references
+- âŒ Forgotten file extensions (`.md`, `.sql`, etc.)
+
+**Step 3: Verify Before Commit**
+1. Make changes to documentation
+2. Save all files
+3. Open Problems Panel (`Ctrl+Shift+M`)
+4. **Verify: 0 errors** â† This is your gate
+5. Only then commit and push
+
+### Why This Matters
+
+Documentation errors are **NOT cosmetic** â€” they:
+- Break links for developers trying to navigate the system
+- Corrupt the developer experience
+- Spread to all team members when merged
+- Become increasingly difficult to fix as they accumulate
+
+**Once you commit an error, it's everyone's problem.** Verify locally first.
+
+### Automated Validation (Future Enhancement)
+
+A pre-commit Git hook should enforce:
+```bash
+# Check for any markdown errors before allowing commit
+Ctrl+Shift+M â†’ Must return: "No errors found"
+```
+
+---
+
 ## Critical Documentation Relationships
 
 ```
 .github/copilot-instructions.md (MAIN REFERENCE)
-    ↓
-    ├─→ 01 project definition
-    ├─→ 02 infrastructure setup
-    ├─→ 03 db_schema.sql
-    ├─→ 04 standards guide
-    ├─→ 05 functionality guide
-    ├─→ 06 ui technical specs
-    ├─→ 07 engine logic specs
-    ├─→ 08 devops deployment
-    └─→ 09 llm prompts config
+    â†“
+    â”œâ”€â†’ 01 project definition
+    â”œâ”€â†’ 02 infrastructure setup
+    â”œâ”€â†’ 03 db_schema.sql
+    â”œâ”€â†’ 04 standards guide
+    â”œâ”€â†’ 05 functionality guide
+    â”œâ”€â†’ 06 ui technical specs
+    â”œâ”€â†’ 07 engine logic specs
+    â”œâ”€â†’ 08 devops deployment
+    â””â”€â†’ 09 llm prompts config
 ```
 
 **Golden Rule**: If you make a change to ANY implementation file, update the corresponding doc section within 24 hours.

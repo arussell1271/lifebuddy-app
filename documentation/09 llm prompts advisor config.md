@@ -1,4 +1,4 @@
-# 🧠 LLM Prompts & Advisor Configuration
+# ðŸ§  LLM Prompts & Advisor Configuration
 
 **File Path:** 09 llm prompts advisor config.md  
 **Audience:** AI Engineers, Prompt Engineers, Backend Developers.
@@ -59,7 +59,7 @@ In your analysis, treat all spiritual or religious references with respect but f
 ```
 In your analysis, you may optionally reference tarot archetypes (e.g., "The Hermit" for introspection, "The Fool" for new beginnings) to help the user understand their unconscious patterns. Use tarot as a metaphorical framework for self-reflection, not as predictive divination. Always clarify that tarot is a tool for introspection, not fate.
 
-Example: "Your dream reflects the energy of The Magician—you have untapped power and tools within you. What specifically do you feel you're not utilizing?"
+Example: "Your dream reflects the energy of The Magicianâ€”you have untapped power and tools within you. What specifically do you feel you're not utilizing?"
 ```
 
 #### C. GOD/SPIRITUAL Mode
@@ -231,7 +231,7 @@ RHR trends reflect cardiovascular fitness and stress levels:
 - Optimal range for adults: 60-100 bpm (athletes: 40-60 bpm)
 
 Contextualize RHR with:
-- Sleep quality (poor sleep → elevated RHR)
+- Sleep quality (poor sleep â†’ elevated RHR)
 - Stress/anxiety levels
 - Physical activity adherence
 - Caffeine/stimulant intake
@@ -265,7 +265,7 @@ For all metrics:
 2. Calculate trend (improving/stable/declining over 7-14 days)
 3. Identify triggers (what changed when metric shifted?)
 4. Connect to actionable items (which items correlate with improvement?)
-5. Avoid alarmism (one bad day ≠ failure)
+5. Avoid alarmism (one bad day â‰  failure)
 ```
 
 ### User Custom Questions Integration
@@ -448,7 +448,7 @@ Randomly assign users to versions and measure:
 ### C. Feedback Loop
 
 ```
-User Feedback → Prompt Engineer Review → Update Prompt → Test with Ollama → Deploy → Monitor Results
+User Feedback â†’ Prompt Engineer Review â†’ Update Prompt â†’ Test with Ollama â†’ Deploy â†’ Monitor Results
 ```
 
 ---
@@ -551,7 +551,7 @@ Now generate a Holistic Actionable Item:
 
 ## XI. References
 
-- [Engine Logic Specifications](../documentation/07 engine logic specifications.md)
-- [Database Schema](../documentation/03 db_schema.sql)
-- [UI Technical Specs](../documentation/06 ui technical specifications.md)
+- [Engine Logic Specifications`documentation/07 engine logic specifications.md`
+- [Database Schema`documentation/03 db_schema.sql`
+- [UI Technical Specs`documentation/06 ui technical specifications.md`
 - [Ollama Documentation](https://github.com/ollama/ollama)

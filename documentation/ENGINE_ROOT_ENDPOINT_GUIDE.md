@@ -8,7 +8,7 @@
 ## What Has Been Delivered
 
 ### 1. **Complete Engine API Reference Document**
-📄 File: [documentation/10 engine api reference.md](../documentation/10 engine api reference.md)
+ðŸ“„ File: [documentation/10 engine api reference.md`documentation/10 engine api reference.md`
 
 **Contains**:
 - Full HTML template for the landing page (copy-paste ready)
@@ -20,13 +20,13 @@
 - Future enhancement roadmap
 
 **Use Case**: When users access `http://localhost:8001` via web browser, they see:
-1. ⚠️ **Security Notice** - Explains the service is restricted and internal
-2. 📡 **API Listing** - Shows all available endpoints with descriptions
-3. 📞 **Contact Info** - Instructions to request access from administrator
-4. 🔗 **Links** - Direct access to `/docs` (Swagger), `/redoc` (ReDoc), and full API reference
+1. âš ï¸ **Security Notice** - Explains the service is restricted and internal
+2. ðŸ“¡ **API Listing** - Shows all available endpoints with descriptions
+3. ðŸ“ž **Contact Info** - Instructions to request access from administrator
+4. ðŸ”— **Links** - Direct access to `/docs` (Swagger), `/redoc` (ReDoc), and full API reference
 
 ### 2. **Updated Copilot Instructions**
-📄 File: [.github/copilot-instructions.md](../.github/copilot-instructions.md)
+ðŸ“„ File: [.github/copilot-instructions.md`.github/copilot-instructions.md`
 
 **New Section Added**: "Engine Root Endpoint (Security & Documentation)"
 - Documents the behavior when accessing GET /
@@ -38,7 +38,7 @@
 - Reorganized Tier 3 (Operations & Deployment) to include new document
 
 ### 3. **FastAPI Implementation Example**
-📄 File: [engine/example_root_endpoint.py](../engine/example_root_endpoint.py)
+ðŸ“„ File: [engine/example_root_endpoint.py`engine/example_root_endpoint.py`
 
 **Shows**:
 - How to implement the root endpoint (GET /) in FastAPI
@@ -47,10 +47,10 @@
 - Docstring patterns for all endpoints
 - How to return the HTML landing page
 
-**Can be**: Copy → Modify → Integrate directly into your Engine service code
+**Can be**: Copy â†’ Modify â†’ Integrate directly into your Engine service code
 
 ### 4. **Updated Documentation Manifest**
-📄 File: [documentation/DOCUMENTATION_MANIFEST.md](../documentation/DOCUMENTATION_MANIFEST.md)
+ðŸ“„ File: [documentation/DOCUMENTATION_MANIFEST.md`documentation/DOCUMENTATION_MANIFEST.md`
 
 **Reflects**:
 - New `10 engine api reference.md` file in Tier 3
@@ -64,27 +64,27 @@
 ### User Journey
 
 ```
-User opens browser → http://localhost:8001
-    ↓
+User opens browser â†’ http://localhost:8001
+    â†“
     GET / endpoint triggered
-    ↓
+    â†“
     Server returns HTML page (from 10 engine api reference.md)
-    ↓
+    â†“
 Browser displays:
-    1. 🧠 Title: "Life Buddy Cognitive Engine"
-    2. ⚠️  Security Warning (yellow box)
-    3. 📡 API Endpoints listing (organized by category)
-    4. 📞 Contact administrator section
-    5. 🔗 Links to /docs and /redoc
+    1. ðŸ§  Title: "Life Buddy Cognitive Engine"
+    2. âš ï¸  Security Warning (yellow box)
+    3. ðŸ“¡ API Endpoints listing (organized by category)
+    4. ðŸ“ž Contact administrator section
+    5. ðŸ”— Links to /docs and /redoc
 ```
 
 ### Security Benefits
 
-✅ **Prevents Casual Discovery**: Random port scanning won't expose sensitive endpoints—just a notice  
-✅ **Clear Access Control**: Visitors know they need approval  
-✅ **Audit Trail**: Every access is logged (recommended in implementation)  
-✅ **Documentation**: Authorized users get immediate API reference  
-✅ **Professional Appearance**: Shows security is taken seriously  
+âœ… **Prevents Casual Discovery**: Random port scanning won't expose sensitive endpointsâ€”just a notice  
+âœ… **Clear Access Control**: Visitors know they need approval  
+âœ… **Audit Trail**: Every access is logged (recommended in implementation)  
+âœ… **Documentation**: Authorized users get immediate API reference  
+âœ… **Professional Appearance**: Shows security is taken seriously  
 
 ---
 
@@ -93,7 +93,7 @@ Browser displays:
 When building the Engine service, use this checklist:
 
 ### Phase 1: Core Setup
-- [ ] Copy HTML from [10 engine api reference.md](../documentation/10 engine api reference.md) into your Engine code
+- [ ] Copy HTML from [10 engine api reference.md`documentation/10 engine api reference.md` into your Engine code
 - [ ] Create GET / endpoint that returns the HTML
 - [ ] Implement logging for all root endpoint access
 - [ ] Create GET /health (returns 200 if running)
@@ -109,7 +109,7 @@ When building the Engine service, use this checklist:
 ### Phase 3: Integration
 - [ ] Use example_root_endpoint.py as template for your main FastAPI app
 - [ ] Keep API endpoint documentation in sync with /docs (Swagger auto-generates from decorators)
-- [ ] Update [10 engine api reference.md](../documentation/10 engine api reference.md) whenever you add/remove endpoints
+- [ ] Update [10 engine api reference.md`documentation/10 engine api reference.md` whenever you add/remove endpoints
 - [ ] Verify landing page renders correctly at `http://localhost:8001`
 
 ### Phase 4: Testing
@@ -125,17 +125,17 @@ When building the Engine service, use this checklist:
 
 | File | Purpose |
 |------|---------|
-| [10 engine api reference.md](../documentation/10 engine api reference.md) | Complete endpoint listing + HTML template |
-| [example_root_endpoint.py](../engine/example_root_endpoint.py) | FastAPI implementation example |
-| [.github/copilot-instructions.md](../.github/copilot-instructions.md) | AI agent guidance (section: "Engine Root Endpoint") |
-| [02 infrastructure setup.md](../documentation/02 infratructure setup.md) | Network/port configuration |
-| [06 ui technical specifications.md](../documentation/06 ui technical specifications.md) | API contract patterns |
+| [10 engine api reference.md`documentation/10 engine api reference.md` | Complete endpoint listing + HTML template |
+| [example_root_endpoint.py`engine/example_root_endpoint.py` | FastAPI implementation example |
+| [.github/copilot-instructions.md`.github/copilot-instructions.md` | AI agent guidance (section: "Engine Root Endpoint") |
+| [02 infrastructure setup.md`documentation/02 infratructure setup.md` | Network/port configuration |
+| [06 ui technical specifications.md`documentation/06 ui technical specifications.md` | API contract patterns |
 
 ---
 
 ## HTML Template Customization
 
-The HTML in [10 engine api reference.md](../documentation/10 engine api reference.md) can be customized:
+The HTML in [10 engine api reference.md`documentation/10 engine api reference.md` can be customized:
 
 ### Change Colors
 ```html
@@ -254,14 +254,14 @@ When implementing, log these events:
 
 Now that the Engine root endpoint and API reference are fully documented:
 
-1. **Implement the Core Engine Service** → Use `example_root_endpoint.py` as a template
-2. **Build App Service** → Reference [06 ui technical specifications.md](../documentation/06 ui technical specifications.md)
-3. **Set Up Database** → Use [03 db_schema.sql](../documentation/03 db_schema.sql)
-4. **Test Integration** → Follow [DOCUMENTATION_MANIFEST.md](../documentation/DOCUMENTATION_MANIFEST.md) Phase checklist
-5. **Deploy to Production** → Use [08 devops deployment guide.md](../documentation/08 devops deployment guide.md)
+1. **Implement the Core Engine Service** â†’ Use `example_root_endpoint.py` as a template
+2. **Build App Service** â†’ Reference [06 ui technical specifications.md`documentation/06 ui technical specifications.md`
+3. **Set Up Database** â†’ Use [03 db_schema.sql`documentation/03 db_schema.sql`
+4. **Test Integration** â†’ Follow [DOCUMENTATION_MANIFEST.md`documentation/DOCUMENTATION_MANIFEST.md` Phase checklist
+5. **Deploy to Production** â†’ Use [08 devops deployment guide.md`documentation/08 devops deployment guide.md`
 
 ---
 
 **Last Updated**: December 29, 2025  
-**Status**: ✅ Complete - Ready for implementation  
+**Status**: âœ… Complete - Ready for implementation  
 **Audience**: Backend Engineers, DevOps, System Architects

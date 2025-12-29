@@ -1,4 +1,4 @@
-# 🚀 DevOps & Deployment Guide
+# ðŸš€ DevOps & Deployment Guide
 
 **File Path:** 08 devops deployment guide.md  
 **Audience:** DevOps Engineers, Full-Stack Developers, Infrastructure Team.
@@ -604,5 +604,5 @@ SELECT * FROM actionable_items;
 - [Docker Documentation](https://docs.docker.com/)
 - [PostgreSQL RLS Documentation](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
 - [FastAPI Security](https://fastapi.tiangolo.com/tutorial/security/)
-- [Infrastructure Setup](../documentation/02 infratructure setup.md)
-- [Database Schema](../documentation/03 db_schema.sql)
+- [Infrastructure Setup`documentation/02 infratructure setup.md`
+- [Database Schema`documentation/03 db_schema.sql`
