@@ -25,33 +25,33 @@ echo =========================================================
 echo.
 echo    --- 1. Docker and Service Management ---
 echo    1. Rebuild and Start Services (Profile: %PROFILE_NAME%)
-echo    R. Rebuild App+Engine only (no pgadmin rebuild)
-echo    2. Pull 'mistral' model to 'ollama' container
-echo    3. Shut Down Services (Profile: %PROFILE_NAME%)
-echo    4. DELETE Project Assets (Containers, Volumes, Images)
-echo    5. DELETE ALL Docker Assets (!!! WARNING: System-wide !!!)
+echo    2. Rebuild App+Engine only (no pgadmin rebuild)
+echo    3. Pull 'mistral' model to 'ollama' container
+echo    4. Shut Down Services (Profile: %PROFILE_NAME%)
+echo    5. DELETE Project Assets (Containers, Volumes, Images)
+echo    6. DELETE ALL Docker Assets (!!! WARNING: System-wide !!!)
 echo.
 echo    --- 2. Data and Code Transfer ---
-echo    6. Backup Database Volume (FROM Docker)
-echo    7. Restore Database Volume (TO Docker)
-echo    8. Upload Code to GitHub
+echo    7. Backup Database Volume (FROM Docker)
+echo    8. Restore Database Volume (TO Docker)
+echo    9. Upload Code to GitHub
 echo.
 echo    --- 3. Configuration and Exit ---
 echo    C. Change Profile (Current: %PROFILE_NAME%)
 echo    X. Exit Manager
 echo.
-set /p CHOICE="Enter your choice (1-8, C, X): "
+set /p CHOICE="Enter your choice (1-9, C, X): "
 
 if /i "%CHOICE%"=="1" goto REBUILD
-if /i "%CHOICE%"=="R" goto REBUILD_APP_ENGINE
-if /i "%CHOICE%"=="2" goto PULL_MISTRAL
-if /i "%CHOICE%"=="3" goto STOP
-if /i "%CHOICE%"=="4" goto REMOVE_PROJECT
-if /i "%CHOICE%"=="5" goto REMOVE_ALL
+if /i "%CHOICE%"=="2" goto REBUILD_APP_ENGINE
+if /i "%CHOICE%"=="3" goto PULL_MISTRAL
+if /i "%CHOICE%"=="4" goto STOP
+if /i "%CHOICE%"=="5" goto REMOVE_PROJECT
+if /i "%CHOICE%"=="6" goto REMOVE_ALL
 
-if /i "%CHOICE%"=="6" goto DB_BACKUP
-if /i "%CHOICE%"=="7" goto DB_RESTORE
-if /i "%CHOICE%"=="8" goto GITHUB_PUSH
+if /i "%CHOICE%"=="7" goto DB_BACKUP
+if /i "%CHOICE%"=="8" goto DB_RESTORE
+if /i "%CHOICE%"=="9" goto GITHUB_PUSH
 
 if /i "%CHOICE%"=="C" goto CHANGE_PROFILE
 if /i "%CHOICE%"=="X" goto END

@@ -80,10 +80,10 @@ function Start-DockerServices {
 # Targeted rebuild for app and engine only (useful for fast dev iterations)
 function Invoke-RebuildAppEngine {
     param([string]$ComposeFilePath, [string]$ProfileName)
-    Write-Host "Rebuilding only 'app' and 'engine' services (using '$ComposeFilePath')..." -ForegroundColor Green
+    Write-Host "Rebuilding only 'lifebuddy-app' and 'lifebuddy-engine' services (using '$ComposeFilePath')..." -ForegroundColor Green
 
     # This runs a compose up for only the named services which avoids recreating unrelated services like pgadmin
-    Invoke-DockerCompose "up -d --build app engine" -ComposeFilePath $ComposeFilePath -ProfileName $ProfileName
+    Invoke-DockerCompose "up -d --build lifebuddy-app lifebuddy-engine" -ComposeFilePath $ComposeFilePath -ProfileName $ProfileName
 }
 
 # 2. Ollama: Pull Mistral Model (Direct docker exec)
