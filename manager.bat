@@ -25,6 +25,7 @@ echo =========================================================
 echo.
 echo    --- 1. Docker and Service Management ---
 echo    1. Rebuild and Start Services (Profile: %PROFILE_NAME%)
+echo    R. Rebuild App+Engine only (no pgadmin rebuild)
 echo    2. Pull 'mistral' model to 'ollama' container
 echo    3. Shut Down Services (Profile: %PROFILE_NAME%)
 echo    4. DELETE Project Assets (Containers, Volumes, Images)
@@ -42,6 +43,7 @@ echo.
 set /p CHOICE="Enter your choice (1-8, C, X): "
 
 if /i "%CHOICE%"=="1" goto REBUILD
+if /i "%CHOICE%"=="R" goto REBUILD_APP_ENGINE
 if /i "%CHOICE%"=="2" goto PULL_MISTRAL
 if /i "%CHOICE%"=="3" goto STOP
 if /i "%CHOICE%"=="4" goto REMOVE_PROJECT
@@ -77,6 +79,24 @@ if %errorlevel% EQU 0 goto REBUILD_SUCCESS
     goto MAIN_MENU
 
 :REBUILD_SUCCESS
+echo.
+pause
+goto MAIN_MENU
+
+:REBUILD_APP_ENGINE
+echo.
+echo Rebuilding and starting only the App and Engine services (no pgadmin)...
+echo.
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS_DOCKER_MANAGER_SCRIPT%" -Action "rebuild_app_engine" -ComposeFilePath "%PS_DOCKER_COMPOSE%" -ProfileName "%PROFILE_NAME%"
+
+:: Check for errors
+if %errorlevel% EQU 0 goto REBUILD_APP_ENGINE_SUCCESS
+    echo.
+    echo !!! ERROR: Targeted rebuild failed (Error Level: %errorlevel%) !!!
+    pause
+    goto MAIN_MENU
+
+:REBUILD_APP_ENGINE_SUCCESS
 echo.
 pause
 goto MAIN_MENU

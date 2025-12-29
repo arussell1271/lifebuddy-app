@@ -1,9 +1,23 @@
 # docker_manager.ps1 - Core Docker Compose Management Script
 
+# PSScriptAnalyzer: DisableRule PSUseApprovedVerbs
+# Disabled above because this script intentionally defines small wrapper functions
+# with names that mirror operational actions used by the manager batch file.
+
+<#
+PSScriptAnalyzer directive: disable the PSUseApprovedVerbs rule for this file.
+Some function names intentionally mirror operational action labels used in the
+manager menu. If you want stricter linting, remove these directives and
+rename the functions to approved verbs.
+disable=PSUseApprovedVerbs
+#>
+
+# PSScriptAnalyzer:DisableRule=PSUseApprovedVerbs
+
 ## 🚀 Execution Function - Entry Point
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet("rebuild", "pull_mistral", "stop", "remove_all", "remove_project")]
+    [ValidateSet("rebuild", "rebuild_app_engine", "pull_mistral", "stop", "remove_all", "remove_project")]
     [string]$Action,
     
     # New parameter to accept the full path to the docker-compose file
@@ -63,14 +77,23 @@ function Start-DockerServices {
     Invoke-DockerCompose "up -d --build --force-recreate " $ComposeFilePath -ProfileName $ProfileName
 }
 
+# Targeted rebuild for app and engine only (useful for fast dev iterations)
+function Invoke-RebuildAppEngine {
+    param([string]$ComposeFilePath, [string]$ProfileName)
+    Write-Host "Rebuilding only 'app' and 'engine' services (using '$ComposeFilePath')..." -ForegroundColor Green
+
+    # This runs a compose up for only the named services which avoids recreating unrelated services like pgadmin
+    Invoke-DockerCompose "up -d --build app engine" -ComposeFilePath $ComposeFilePath -ProfileName $ProfileName
+}
+
 # 2. Ollama: Pull Mistral Model (Direct docker exec)
-function Pull-MistralModel {
+function Invoke-PullMistralModel {
     Write-Host "Attempting to pull 'mistral' model in the 'ollama' container..." -ForegroundColor Green
-    
+
     # Execute the direct docker command.
     # Note: Using 'docker exec' is direct and doesn't require docker-compose context.
     docker exec -it ollama ollama pull mistral
-    
+
     if ($LASTEXITCODE -ne 0) {
         Write-Host "ERROR: Pull command failed." -ForegroundColor Red
     }
@@ -143,7 +166,8 @@ function Remove-ProjectDockerAssets {
 # Use the -ComposeFilePath parameter for all relevant actions
 switch ($Action) {
     "rebuild" { Start-DockerServices -ComposeFilePath $ComposeFilePath -ProfileName $ProfileName }
-    "pull_mistral" { Pull-MistralModel }
+    "rebuild_app_engine" { Invoke-RebuildAppEngine -ComposeFilePath $ComposeFilePath -ProfileName $ProfileName }
+    "pull_mistral" { Invoke-PullMistralModel }
     "stop" { Stop-DockerServices -ComposeFilePath $ComposeFilePath -ProfileName $ProfileName }
     "remove_all" { Remove-AllDockerAssets }
     "remove_project" { Remove-ProjectDockerAssets -ComposeFilePath $ComposeFilePath -ProfileName $ProfileName }
