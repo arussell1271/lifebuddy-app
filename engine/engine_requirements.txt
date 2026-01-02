@@ -10,3 +10,5 @@ langchain # Common LLM orchestration library
 ollama # Client for the local LLM service
 rq # Redis Queue or similar message queue worker library
 gunicorn
+python-jose[cryptography]
+python-multipart

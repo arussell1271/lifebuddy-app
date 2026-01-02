@@ -1,3 +1,50 @@
+# AI Coding Agent Instructions: Lifebuddy (concise)
+
+Purpose: Give AI coding agents the exact, repo-specific knowledge needed to be productive.
+
+-- Architecture in one line: two FastAPI services — `app/` (public UI API, port 8000) and `engine/` (internal cognitive engine, port 8001) — isolated by Docker networks (`frontend-network` vs `core-network`). See [lifebuddy-app.yml](../lifebuddy-app.yml).
+
+- Key rules (must follow):
+  - The App must never access the DB or LLM directly. All LLM and DB logic goes through the Engine.
+  - RLS is enforced: Engine uses `cognitive_engine_rls` for live queries and `get_rls_session(user_id)` to set session context.
+  - `*_json` fields are opaque to the App; Engine validates/serializes them.
+
+- Fast entrypoints and examples:
+  - App health: [app/main.py](../app/main.py) — runs on 8000.
+  - Engine health: [engine/main.py](../engine/main.py) — runs on 8001.
+  - Compose orchestrator: [lifebuddy-app.yml](../lifebuddy-app.yml).
+
+- Dev workflows (concrete commands):
+  - Start full dev stack: `docker compose -f lifebuddy-app.yml --profile dev up --build`
+  - Rebuild app+engine fast: use `scripts/docker_manager.ps1` `rebuild_app_engine` with `-ComposeFilePath lifebuddy-app.yml -ProfileName dev`.
+  - Pull LLM model (ollama): `scripts/docker_manager.ps1 -Action pull_mistral -ComposeFilePath lifebuddy-app.yml -ProfileName dev` or `docker exec -it ollama ollama pull mistral`.
+
+- What to edit when changing code:
+  1. Code changes → update related doc(s): API changes → `documentation/06 ui technical specifications.md`; schema → `documentation/03 db_schema.sql`; synthesis logic → `documentation/07 engine logic specifications.md`.
+  2. Update summaries in `summaries/` (IMPLEMENTATION_READY.md, README_DOCUMENTATION.md).
+  3. Run a quick error check in the IDE Problems panel before committing.
+
+- Agent implementation guidance (specific behaviors):
+  - Use the repo's docs as authoritative. If adding endpoints, add specs to `documentation/10 engine api reference.md` and the relevant UI spec.
+  - Avoid changing network or permissions in `lifebuddy-app.yml` without documenting security implications.
+  - For DB changes, modify `postgres/03_db_schema.sql` and `documentation/03 db_schema.sql` together.
+
+- Common pitfalls (observed in repo):
+  - Do not expose `document_vectors` or embeddings to the App or clients — Engine-only.
+  - Do not bypass `message-broker` (Redis) for long-running synthesis jobs — use the async queue + job_id pattern.
+
+- Where to find examples and templates:
+  - Engine endpoint template: [engine/example_root_endpoint.py](../engine/example_root_endpoint.py)
+  - Docker helper: [scripts/docker_manager.ps1](../scripts/docker_manager.ps1)
+  - Documentation index and reading order: [README_DOCUMENTATION.md](../README_DOCUMENTATION.md)
+
+- Editing and commit checklist for AI agents (short):
+  - Create code change PR with focused commit(s).
+  - Update documentation files that the change touches (see above).
+  - Update `summaries/IMPLEMENTATION_READY.md` entry.
+  - Run lint/test if present; otherwise verify containers start with compose command above.
+
+If anything here is unclear or you want more examples (prompts, common PR patterns, or a checklist tailored for a specific task), tell me which area to expand. 
 # AI Coding Agent Instructions: Life Buddy
 
 ## Architecture Overview
@@ -35,16 +82,16 @@
 ## Essential Files & Data Flows
 
 ### Schema & Security
-- [Database Schema`documentation/03 db_schema.sql` - Defines RLS policies, user roles, and tables. **Key**: `cognitive_engine_full` (admin) and `cognitive_engine_rls` (enforces RLS).
-- [Infrastructure Setup`documentation/02 infratructure setup.md` - Network isolation, port mappings, mandatory env vars (JWT_SECRET_KEY, JWT_ALGORITHM, APP_SECRET_KEY).
+- [Database Schema`../documentation/03 db_schema.sql` - Defines RLS policies, user roles, and tables. **Key**: `cognitive_engine_full` (admin) and `cognitive_engine_rls` (enforces RLS).
+- [Infrastructure Setup`../documentation/02 infratructure setup.md` - Network isolation, port mappings, mandatory env vars (JWT_SECRET_KEY, JWT_ALGORITHM, APP_SECRET_KEY).
 
 ### Execution & Patterns
-- [Standards Guide`documentation/04 standards guide.md` - Naming conventions, service responsibilities, RLS dual-mode enforcement, JSON serialization for `*_json` fields, 4-day data retention.
-- [UI Technical Specs`documentation/06 ui technical specifications.md` - API contracts, async job pattern, RLS enforcement in endpoints.
+- [Standards Guide`../documentation/04 standards guide.md` - Naming conventions, service responsibilities, RLS dual-mode enforcement, JSON serialization for `*_json` fields, 4-day data retention.
+- [UI Technical Specs`../documentation/06 ui technical specifications.md` - API contracts, async job pattern, RLS enforcement in endpoints.
 
 ### Configuration
 - `.env.dev` / `.env.prod`: Environment variables (never commit secrets).
-- `docker-compose.yml` / `lifebuddy-app.yml`: Service orchestration. Use `--profile dev` or `--profile prod`.
+- `docker-compose.yml` / `../lifebuddy-app.yml`: Service orchestration. Use `--profile dev` or `--profile prod`.
 
 ---
 

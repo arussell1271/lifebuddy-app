@@ -64,6 +64,9 @@
 **Engine API Reference**
 - ðŸ“¡ [10 engine api reference.md`10 engine api reference.md) - Complete API endpoint documentation (30+ endpoints), landing page HTML template, security notice, endpoint summary table
 
+**Internal Status Page**
+- ðŸ“¡ [12 internal status page.md`12 internal status page.md) - Local-only Engine status page (traffic-light) showing DB/Redis/LLM connectivity and app code integrity checks
+
 ---
 
 ### Tier 4: Implementation Guides (3 files)
@@ -73,6 +76,9 @@
 
 **Implementation Example Code**
 - ðŸ’» [example_root_endpoint.py`engine/example_root_endpoint.py) - FastAPI implementation example with health checks, landing page, protected endpoints, docstrings
+
+**Frontend Demo**
+- ðŸ‘’ [11 frontend auth and landing.md`documentation/11 frontend auth and landing.md) - Minimal landing, auth, and dashboard pages; calls Engine auth and db-test endpoints.
 
 **Status & Checklist**
 - âœ… [IMPLEMENTATION_READY.md](./IMPLEMENTATION_READY.md) - Quick summary of what's documented, what's ready to build, reference guide

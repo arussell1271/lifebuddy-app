@@ -1,0 +1,58 @@
+<html><head><title>Internal Status</title><style>
+            body{font-family:Arial;margin:18px}
+            .card{background:#fff;padding:16px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.06)}
+            .dot{width:12px;height:12px;border-radius:50%;display:inline-block;margin-right:8px;vertical-align:middle}
+            .service{margin:8px 0}
+            pre{background:#0f172a;color:#e2e8f0;padding:12px;border-radius:6px}
+        </style></head><body>
+        <div class='card'>
+            <h2>Internal Status — Overall: <span style='color:#ef4444'>RED</span></h2>
+            <ul>
+                <li class='service'><span class='dot' style='background:#10b981'></span>Postgres (lifebuddy-db:5432): ok (latency=0.00s)</li>
+                <li class='service'><span class='dot' style='background:#10b981'></span>Redis (message-broker:6379): ok (latency=0.00s)</li>
+                <li class='service'><span class='dot' style='background:#ef4444'></span>LLM (Ollama): 404 404 page not found</li>
+                <li class='service'><span class='dot' style='background:#ef4444'></span>App: App HTTP probe reachable: http://lifebuddy-app:8000/ (status=200)</li>
+                <li>Notes:<ul><li>LLM unreachable: 404 404 page not found</li><li>App code contains direct DB/LLM client references</li></ul></li>
+            </ul>
+            <div style='margin-top:12px'><strong>App probe snippet</strong><pre style='white-space:pre-wrap;background:#f1f5f9;padding:12px;border-radius:6px'>&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+
+&lt;head&gt;
+    &lt;meta charset=&quot;utf-8&quot;&gt;
+    &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1&quot;&gt;
+    &lt;link rel=&quot;stylesheet&quot; href=&quot;/static/styles.css&quot;&gt;
+    &lt;title&gt;LifeBuddy&lt;/title&gt;
+&lt;/head&gt;
+
+&lt;body&gt;
+    &lt;header class=&quot;site-header&quot;&gt;
+        &lt;a href=&quot;/&quot;&gt;LifeBuddy&lt;/a&gt;
+        &lt;nav&gt;
+            &lt;a href=&quot;/login&quot;&gt;Login&lt;/a&gt;
+            &lt;a href=&quot;/register&quot;&gt;Create account&lt;/a&gt;
+        &lt;/nav&gt;
+    &lt;/header&gt;
+    &lt;main class=&quot;container&quot;&gt;
+        
+&lt;h1&gt;Welcome to LifeBuddy (Demo)&lt;/h1&gt;
+&lt;p&gt;This is a simple landing page for the demo. Use the links above to login or create an account.&lt;/p&gt;
+&lt;ul&gt;
+    &lt;li&gt;&lt;a href=&quot;/login&quot;&gt;Login&lt;/a&gt;&lt;/li&gt;
+    &lt;li&gt;&lt;a href=&quot;/register&quot;&gt;Create account&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+    &lt;/main&gt;
+    &lt;footer class=&quot;site-footer&quot;&gt;&amp;copy; LifeBuddy&lt;/footer&gt;
+&lt;/body&gt;
+
+&lt;</pre></div>
+            <div style='margin-top:12px'>
+                <strong>Meaning &amp; Thresholds</strong>
+                <ul>
+                    <li><span style='color:#10b981;font-weight:700'>Green</span> = OK — latency &lt; 200 ms</li>
+                    <li><span style='color:#f59e0b;font-weight:700'>Amber</span> = Degraded — latency 200 ms–1500 ms (review)</li>
+                    <li><span style='color:#ef4444;font-weight:700'>Red</span> = Critical — latency &gt; 1500 ms or unreachable / policy violation</li>
+                </ul>
+            </div>
+        </div>
+        </body></html>

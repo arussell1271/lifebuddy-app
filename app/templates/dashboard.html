@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Dashboard</h2>
+{% if user %}
+<p>{{ user.message }}</p>
+{% else %}
+<p>Not authenticated.</p>
+{% endif %}
+<h3>Database status</h3>
+<pre>{{ db_status | tojson(indent=2) }}</pre>
+<p><a href="/">Back to landing</a></p>
+{% endblock %}
