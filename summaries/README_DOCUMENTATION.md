@@ -75,7 +75,7 @@
 - ðŸ’» [example_root_endpoint.py`engine/example_root_endpoint.py` - FastAPI implementation example with health checks, landing page, protected endpoints, docstrings
 
 **Status & Checklist**
-- âœ… [IMPLEMENTATION_READY.md](./IMPLEMENTATION_READY.md) - Quick summary of what's documented, what's ready to build, reference guide
+- âœ… [IMPLEMENTATION_READY.md](summaries/IMPLEMENTATION_READY.md) - Quick summary of what's documented, what's ready to build, reference guide
 
 **Documentation Manifest**
 - ðŸ“š [DOCUMENTATION_MANIFEST.md`documentation/DOCUMENTATION_MANIFEST.md` - Track all docs, change log, maintenance protocol, quality checklist, known gaps, error code inventory

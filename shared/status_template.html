@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{{ title }}</title>
+    <style>
+        body {
+            font-family: Inter, system-ui, -apple-system, Arial, sans-serif;
+            background: #f6f8fa;
+            color: #111;
+            margin: 24px
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 22px;
+            border-radius: 10px;
+            box-shadow: 0 6px 24px rgba(12, 15, 20, 0.06)
+        }
+
+        h1 {
+            margin: 0 0 12px 0;
+            font-size: 20px
+        }
+
+        .subtitle {
+            color: #6b7280;
+            margin-bottom: 16px
+        }
+
+        .service-table {
+            margin-top: 12px
+        }
+
+        /* layout: keep header and thresholds visible; make services scrollable */
+        .status-wrapper {
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 180px);
+        }
+
+        .service-scroll {
+            overflow-y: auto;
+            padding-right: 6px;
+        }
+
+        .service-table-header {
+            display: grid;
+            grid-template-columns: 120px 1fr 320px;
+            gap: 12px;
+            padding: 8px 0;
+            color: #6b7280;
+            font-size: 13px;
+            border-bottom: 1px solid #eef2f6
+        }
+
+        .service-row {
+            display: grid;
+            grid-template-columns: 120px 1fr 320px;
+            gap: 12px;
+            align-items: center;
+            padding: 14px 0;
+            border-bottom: 1px solid #f1f5f9
+        }
+
+        .badge {
+            font-weight: 700;
+            padding: 6px 10px;
+            border-radius: 999px;
+            color: white;
+            display: inline-block;
+            text-align: center;
+            min-width: 86px
+        }
+
+        .green {
+            background: #10b981
+        }
+
+        .amber {
+            background: #f59e0b
+        }
+
+        .red {
+            background: #ef4444
+        }
+
+        .detail {
+            color: #374151;
+            margin-top: 4px
+        }
+
+        .desc {
+            color: #6b7280;
+            margin-top: 6px;
+            font-size: 13px;
+        }
+
+        .sub-list {
+            margin-top: 8px
+        }
+
+        .sub-list-items {
+            margin: 0;
+            padding-left: 18px
+        }
+
+        .sub-item {
+            margin-bottom: 6px
+        }
+
+        .sub-badge-wrapper {
+            display: inline-block;
+            min-width: 86px
+        }
+
+        .thresholds {
+            margin-top: 16px
+        }
+
+        /* compact footer-style thresholds */
+        .thresholds-compact .service-row {
+            padding: 6px 0;
+            border-bottom: 1px solid #f7fafc;
+        }
+
+        .thresholds-compact .badge {
+            min-width: 64px;
+            padding: 6px 10px;
+            font-size: 13px;
+        }
+
+        .thresholds-compact .detail {
+            margin-top: 2px;
+            font-size: 13px;
+            color: #374151;
+        }
+
+        .section-title.small {
+            font-size: 15px;
+            margin-top: 8px;
+            margin-bottom: 6px;
+            font-weight: 700;
+            /* bold the thresholds title */
+        }
+
+        ul {
+            margin-top: 8px
+        }
+
+        .footer {
+            margin-top: 18px;
+            color: #6b7280;
+            font-size: 13px
+        }
+
+        .section-title {
+            margin-top: 8px
+        }
+
+        .hidden {
+            display: none
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>{{ title }}</h1>
+        <div class="subtitle">{{ subtitle }}</div>
+
+        <h2 class="section-title">Service Checks</h2>
+
+        <div class="status-wrapper">
+            <div class="service-scroll">
+                <div class="service-table">
+                    <div class="service-table-header">
+                        <div class="col-status">Status</div>
+                        <div class="col-component">Component & Details</div>
+                        <div class="col-desc">Description</div>
+                    </div>
+
+                    {%- for s in services %}
+                    <div class="service-row">
+                        <div>
+                            <div class="badge {{ s.status_class }}">{{ s.status_label }}</div>
+                        </div>
+                        <div>
+                            <div><strong>{{ s.component }}</strong></div>
+                            <div class="detail">{{ s.detail }}</div>
+                            {%- if s.subcomponents %}
+                            <div class="sub-list">
+                                <ul class="sub-list-items">
+                                    {%- for c in s.subcomponents %}
+                                    <li class="sub-item"><span class="sub-badge-wrapper"><span
+                                                class="badge {{ c.status_class }}">{{ c.status_label }}</span></span>
+                                        <strong>{{
+                                            c.name }}</strong> — <span class="detail">{{ c.detail }}</span></li>
+                                    {%- endfor %}
+                                </ul>
+                            </div>
+                            {%- endif %}
+                        </div>
+                        <div>
+                            {%- if s.description %}
+                            <div class="desc">{{ s.description }}</div>
+                            {%- endif %}
+                        </div>
+                    </div>
+                    {%- endfor %}
+
+                </div>
+            </div>
+        </div>
+
+        <div class="section-title small">Meaning &amp; Thresholds</div>
+
+        <div class="service-table thresholds-compact">
+            <div class="service-table-header hidden">
+                <div class="col-status">Status</div>
+                <div class="col-component">Meaning</div>
+                <div class="col-desc">Details</div>
+            </div>
+
+            {%- for t in thresholds %}
+            <div class="service-row">
+                <div>
+                    <div class="badge {{ t.label|lower }}">{{ t.label }}</div>
+                </div>
+                <div>
+                    <div class="detail">{{ t.text }}</div>
+                </div>
+                <div>
+                    {# compact footer — no extra description column content #}
+                </div>
+            </div>
+            {%- endfor %}
+
+        </div>
+
+        <div class="footer">{{ footer }}</div>
+    </div>
+</body>
+
+</html>

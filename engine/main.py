@@ -7,13 +7,29 @@ import uuid
 import socket
 import hashlib
 
-import httpx
-import psycopg2
+import httpx  # type: ignore
+import psycopg2  # type: ignore
 from fastapi import FastAPI, Request, HTTPException, Depends, Form, Response
 from fastapi.responses import JSONResponse, HTMLResponse
-from prometheus_client import CollectorRegistry, Gauge, generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import CollectorRegistry, Gauge, generate_latest, CONTENT_TYPE_LATEST  # type: ignore
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import jwt, JWTError
+from jose import jwt, JWTError  # type: ignore
+import os
+import sys
+# Ensure `shared/` package is importable when running inside the container image
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+def _load_shared_renderer():
+    import importlib.util
+    from pathlib import Path
+    base = Path(__file__).resolve().parents[1]
+    renderer_file = base / "shared" / "render_status.py"
+    spec = importlib.util.spec_from_file_location("shared.render_status", str(renderer_file))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.render_status
+
+render_status = _load_shared_renderer()
 
 app = FastAPI(title="LifeBuddy Engine")
 
@@ -147,6 +163,7 @@ async def internal_status(request: Request):
     redis_ok, redis_detail, redis_lat = _socket_check(redis_host, redis_port)
 
     ollama_base = os.environ.get("OLLAMA_BASE_URL", "http://ollama:11434")
+    resp_time_ms = None
     try:
         async with httpx.AsyncClient(timeout=2.0) as client:
             start = time.time()
@@ -203,34 +220,53 @@ async def internal_status(request: Request):
     elif any(l == "amber" for l in (pg_level, redis_level, ollama_level, app_level)):
         overall = "amber"
 
-        html = f"""
-<html><head><title>Internal Status</title>
-    <style>
-        body {{ font-family: Arial, sans-serif; margin: 18px }}
-        .card {{ background:#fff;padding:20px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.06) }}
-        .service {{ margin:8px 0 }}
-    </style>
-</head><body>
-    <div class="card">
-        <h2>Internal Status — {overall.upper()}</h2>
-        <div class="service">{_badge('Postgres', pg_level)}Postgres: {('ok' if pg_ok else 'error')} — {pg_detail}</div>
-        <div class="service">{_badge('Redis', redis_level)}Redis: {('ok' if redis_ok else 'error')} — {redis_detail}</div>
-        <div class="service">{_badge('Ollama', ollama_level)}Ollama: {('ok' if ollama_ok else 'error')} — {ollama_detail}</div>
-        <div class="service">{_badge('App Probe', app_level)}App probe: {('reachable' if app_probe.get('reachable') else 'unreachable')}</div>
+        # Use shared renderer
+        title = f"Engine Internal Status — {overall.upper()}"
+        subtitle = "Service-level health checks for the Engine and its dependencies."
 
-        <div style='margin-top:12px'>
-            <strong>Meaning &amp; Thresholds</strong>
-            <ul>
-                <li><span style='color:#10b981;font-weight:700'>Green</span> = OK — latency &lt; {int(GREEN_THRESHOLD*1000)} ms</li>
-                <li><span style='color:#f59e0b;font-weight:700'>Amber</span> = Degraded — latency {int(GREEN_THRESHOLD*1000)} ms–{int(AMBER_THRESHOLD*1000)} ms</li>
-                <li><span style='color:#ef4444;font-weight:700'>Red</span> = Critical — latency &gt; {int(AMBER_THRESHOLD*1000)} ms or unreachable</li>
-            </ul>
-        </div>
-    </div>
-</body></html>
-"""
+        def _fmt(lat: float | None) -> str:
+            return f"{lat*1000:.2f} ms" if isinstance(lat, (int, float)) else "n/a"
 
-    return HTMLResponse(content=html)
+        label_map = {"green": "OK", "amber": "Degraded", "red": "Critical"}
+
+        services = [
+                {
+                    "status_class": pg_level,
+                    "status_label": label_map.get(pg_level, pg_level.upper()),
+                    "component": "Postgres",
+                    "detail": f"{('ok' if pg_ok else 'error')} — latency: {_fmt(pg_lat)}",
+                    "description": "Primary Postgres database used to persist application data; accessed only by the Engine under RLS enforcement.",
+                },
+                {
+                    "status_class": redis_level,
+                    "status_label": label_map.get(redis_level, redis_level.upper()),
+                    "component": "Redis",
+                    "detail": f"{('ok' if redis_ok else 'error')} — latency: {_fmt(redis_lat)}",
+                    "description": "Redis message-broker used for async job queues and short-lived caching (message-broker service).",
+                },
+                {
+                    "status_class": ollama_level,
+                    "status_label": label_map.get(ollama_level, ollama_level.upper()),
+                    "component": "Ollama",
+                    "detail": f"{('ok' if ollama_ok else 'error')} — latency: {_fmt(resp_time_ms)}",
+                    "description": "Ollama LLM service hosting models used by the Engine for synthesis and analysis (default: ollama:11434).",
+                },
+                {
+                    "status_class": app_level,
+                    "status_label": label_map.get(app_level, app_level.upper()),
+                    "component": "App Probe",
+                    "detail": f"{('reachable' if app_probe.get('reachable') else 'unreachable')}",
+                    "description": "HTTP probe of the public App service to verify the UI/API gateway is reachable from the Engine's network.",
+                },
+            ]
+        thresholds = [
+            {"color": "#10b981", "label": "Green", "text": f"OK — latency < {int(GREEN_THRESHOLD*1000)} ms"},
+            {"color": "#f59e0b", "label": "Amber", "text": f"Degraded — latency {int(GREEN_THRESHOLD*1000)} ms–{int(AMBER_THRESHOLD*1000)} ms"},
+            {"color": "#ef4444", "label": "Red", "text": f"Critical — latency > {int(AMBER_THRESHOLD*1000)} ms or unreachable"},
+        ]
+        footer = "This page is internal to the Engine. The Engine has exclusive access to DB and LLM resources on the secure network."
+        html = render_status(title=title, subtitle=subtitle, services=services, thresholds=thresholds, footer=footer)
+        return HTMLResponse(content=html)
 
 
 @app.get("/metrics")

@@ -1,5 +1,64 @@
 # Internal Status Page
 
+This document explains the internal status/health pages exposed by the App and the Engine services. Both pages use the same professional layout and follow identical semantics so operators and developers can quickly scan service health.
+
+**Where to view**
+- App: `GET /internal/status` on the App (default dev: <http://localhost:8000/internal/status>)
+- Engine: `GET /internal/status` on the Engine (default dev: <http://localhost:8001/internal/status>)
+
+**Purpose**
+- Provide a quick, human-readable traffic-light view of critical dependencies and local assets.
+- Confirm that the App does not access the database or LLM directly (App only probes the Engine).
+
+**Visual layout**
+- Header: page title with overall status (GREEN / AMBER / RED).
+- Subtitle: short description of what is being checked.
+- Service rows: per-service name, colored badge (GREEN/AMBER/RED), and short detail text.
+- Thresholds: concise explanation of what the colors mean (with numeric ms thresholds).
+- Footer: reminder about internal scope and networks.
+
+**Services shown (Engine page)**
+- Postgres: socket/connectivity test to the Postgres container.
+- Redis: socket/connectivity test to the Redis message broker.
+- Ollama: HTTP probe to the configured `OLLAMA_BASE_URL` health endpoint.
+- App Probe: an HTTP probe from the Engine to the App service (helpful to detect network isolation problems).
+
+**Services shown (App page)**
+- Engine: App performs an HTTP call to the Engine `/internal/status` endpoint and reports reachability and latency.
+- Templates Directory: checks whether the App `templates/` directory is present on disk.
+- Static Directory: checks whether the App `static/` directory is present on disk.
+
+**Meaning & thresholds**
+- Green: OK — latency < 200 ms (fast and healthy). Use when the probe returns successfully and latency is below `GREEN_THRESHOLD`.
+- Amber: Degraded — latency between 200 ms and 1500 ms. Indicates a slowdown or partial degradation (or remote endpoint reachable but returning 4xx).
+- Red: Critical — latency > 1500 ms or unreachable. Indicates the service is down or network is blocked.
+
+The numeric thresholds used in the code are defined as constants:
+
+- App page: `APP_GREEN_THRESHOLD`, `APP_AMBER_THRESHOLD` (seconds). These are presented to the UI in milliseconds.
+- Engine page: `GREEN_THRESHOLD`, `AMBER_THRESHOLD` (seconds). These are presented to the UI in milliseconds.
+
+**Interpreting results & next steps**
+- If Engine is Amber/Red (Ollama returned 4xx/5xx or unreachable): check the `ollama` container logs and network settings.
+- If Postgres is Amber/Red: verify the DB container is running, check environment variables (`POSTGRES_HOST`, `POSTGRES_PORT`), and inspect Postgres logs.
+- If Redis is Amber/Red: verify the `message-broker` container and inspect Redis logs.
+- If the App reports Engine unreachable: confirm compose networks and that the Engine container is healthy.
+
+**Security / access**
+- Both pages are intended for local/dev visibility and are served on internal ports. Do not expose them to the public internet.
+
+**Example screenshots**
+- App internal status (GREEN) — shows Engine reachable and App assets present.
+- Engine internal status (AMBER) — shows Ollama returning 404 and other services OK.
+
+**Implementation notes**
+- Both endpoints render the same HTML/CSS for consistent presentation. The Engine page shows Engine-centric dependencies; the App page shows App-centric checks and the Engine probe.
+- To change thresholds or styling, update the constants in `app/main.py` (`APP_GREEN_THRESHOLD`, `APP_AMBER_THRESHOLD`) and `engine/main.py` (`GREEN_THRESHOLD`, `AMBER_THRESHOLD`) and the HTML/CSS embedded in those files.
+
+If you'd like, I can also extract the HTML into a shared template under `shared/` and wire both services to import/render it to avoid duplication.
+
+## App & Engine Health Checks
+
 Purpose
 - A local-only engine endpoint that provides a traffic-light view (Green/Amber/Red) of core services and code integrity checks.
 

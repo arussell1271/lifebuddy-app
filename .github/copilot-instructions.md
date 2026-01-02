@@ -2,7 +2,7 @@
 
 Purpose: Give AI coding agents the exact, repo-specific knowledge needed to be productive.
 
--- Architecture in one line: two FastAPI services — `app/` (public UI API, port 8000) and `engine/` (internal cognitive engine, port 8001) — isolated by Docker networks (`frontend-network` vs `core-network`). See [lifebuddy-app.yml](../lifebuddy-app.yml).
+ - Architecture in one line: two FastAPI services — `app/` (public UI API, port 8000) and `engine/` (internal cognitive engine, port 8001) — isolated by Docker networks (`frontend-network` vs `core-network`). See [lifebuddy-app.yml](../lifebuddy-app.yml).
 
 - Key rules (must follow):
   - The App must never access the DB or LLM directly. All LLM and DB logic goes through the Engine.
@@ -79,7 +79,7 @@ Purpose: Give AI coding agents the exact, repo-specific knowledge needed to be p
   - Do not expose `document_vectors` or embeddings to the App or clients — Engine-only.
   - Do not bypass `message-broker` (Redis) for long-running synthesis jobs — use the async queue + job_id pattern.
 
-- Where to find examples and templates:
+  - Where to find examples and templates:
   - Engine endpoint template: [engine/example_root_endpoint.py](../engine/example_root_endpoint.py)
   - Docker helper: [scripts/docker_manager.ps1](../scripts/docker_manager.ps1)
   - Documentation index and reading order: [README_DOCUMENTATION.md](../README_DOCUMENTATION.md)
@@ -137,7 +137,7 @@ If anything here is unclear or you want more examples (prompts, common PR patter
 
 ### Configuration
 - `.env.dev` / `.env.prod`: Environment variables (never commit secrets).
-- `docker-compose.yml` / `../lifebuddy-app.yml`: Service orchestration. Use `--profile dev` or `--profile prod`.
+- `docker-compose.yml` / `lifebuddy-app.yml`: Service orchestration. Use `--profile dev` or `--profile prod`.
 
 ---
 

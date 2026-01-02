@@ -42,6 +42,7 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages/ /usr/local/lib/pyth
 COPY --from=builder /usr/local/bin/ /usr/local/bin/
 
 # Copy the application code and entrypoints
+COPY --from=builder /usr/src/app/shared /usr/src/app/shared
 COPY --from=builder /usr/src/app/app /usr/src/app/app
 
 # Default command for the App Service

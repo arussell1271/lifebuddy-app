@@ -86,7 +86,7 @@
 - ðŸ‘’ [11 frontend auth and landing.md`documentation/11 frontend auth and landing.md) - Minimal landing, auth, and dashboard pages; calls Engine auth and db-test endpoints.
 
 **Status & Checklist**
-- âœ… [IMPLEMENTATION_READY.md](./IMPLEMENTATION_READY.md) - Quick summary of what's documented, what's ready to build, reference guide
+- âœ… [IMPLEMENTATION_READY.md](.) - Quick summary of what's documented, what's ready to build, reference guide
 
 **Documentation Manifest**
 - ðŸ“š [DOCUMENTATION_MANIFEST.md`DOCUMENTATION_MANIFEST.md) - Track all docs, change log, maintenance protocol, quality checklist, known gaps, error code inventory
@@ -314,6 +314,27 @@ ENGINE_ROOT_ENDPOINT_GUIDE.md (How-to)
 3. [.github/copilot-instructions.md`.github/copilot-instructions.md) (common pitfalls)
 
 ---
+
+## Documentation Link Normalization
+
+To keep documentation link paths consistent and avoid editor warnings, this repository includes a small utility that normalizes parent-relative links (e.g. `app/main.py`) to workspace-relative paths (e.g. `app/main.py`). This helps IDEs and automated checks resolve links reliably.
+
+- Script: `scripts/normalize_doc_links.py`
+- Usage (fix in-place):
+
+```bash
+python scripts/normalize_doc_links.py .github documentation summaries README_DOCUMENTATION.md .github/copilot-instructions.md
+```
+
+- Usage (CI / check-only):
+
+```bash
+python scripts/normalize_doc_links.py --repo-root . --check .github documentation summaries README_DOCUMENTATION.md .github/copilot-instructions.md
+```
+
+CI: A GitHub Actions workflow (`.github/workflows/normalize-docs.yml`) runs the script in `--check` mode on pushes and pull requests to `main`. If the check fails, update the files locally using the first command and commit the fixes.
+
+If you prefer an automated pre-commit fix, consider adding a `pre-commit` config that invokes the script on staged `.md` files.
 
 **Your system is fully documented and ready to build! ðŸš€**
 
