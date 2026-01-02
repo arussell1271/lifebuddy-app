@@ -19,6 +19,52 @@ Purpose: Give AI coding agents the exact, repo-specific knowledge needed to be p
   - Rebuild app+engine fast: use `scripts/docker_manager.ps1` `rebuild_app_engine` with `-ComposeFilePath lifebuddy-app.yml -ProfileName dev`.
   - Pull LLM model (ollama): `scripts/docker_manager.ps1 -Action pull_mistral -ComposeFilePath lifebuddy-app.yml -ProfileName dev` or `docker exec -it ollama ollama pull mistral`.
 
+  Repository helper script (`scripts/docker_manager.ps1`) — safe usage guide
+  - Purpose: a small PowerShell wrapper around `docker compose` and `docker` commands to simplify common dev tasks (rebuild images, pull models, apply DB schema, stop/remove project assets).
+  - Location: `scripts/docker_manager.ps1`.
+  - Always review the command before running. These examples assume PowerShell on Windows and you are in the repo root.
+
+  Common invocations (copy-paste):
+  - Rebuild only the App and Engine (fast dev loop):
+    ```powershell
+    # From the repository root (recommended)
+    $script = Resolve-Path -Path './scripts/docker_manager.ps1'
+    & $script -Action rebuild_app_engine -ComposeFilePath 'lifebuddy-app.yml' -ProfileName dev
+
+    # Or, build the path relative to the current working directory
+    $script = Join-Path (Get-Location) 'scripts\docker_manager.ps1'
+    & $script -Action rebuild_app_engine -ComposeFilePath 'lifebuddy-app.yml' -ProfileName dev
+    ```
+    - What it does: runs `docker compose -f lifebuddy-app.yml --profile dev up -d --build lifebuddy-app lifebuddy-engine` under the hood. Rebuilds images for `lifebuddy-app` and `lifebuddy-engine` and starts them. Does not remove named volumes.
+
+  - Start the full dev stack (all services):
+    ```powershell
+    # Use Resolve-Path so the command works from any current directory
+    $script = Resolve-Path -Path './scripts/docker_manager.ps1'
+    & $script -Action rebuild -ComposeFilePath 'lifebuddy-app.yml' -ProfileName dev
+    ```
+    - What it does: runs `docker compose -f lifebuddy-app.yml --profile dev up -d --build` for the whole compose file. May take significantly longer and will build all services.
+
+  - Pull the `mistral` model inside the `ollama` container (may be large):
+    ```powershell
+    $script = Resolve-Path -Path './scripts/docker_manager.ps1'
+    & $script -Action pull_mistral -ComposeFilePath 'lifebuddy-app.yml' -ProfileName dev
+    ```
+    - What it does: runs `docker exec -it ollama ollama pull mistral`. This downloads the model into the Ollama container's model store and can take several minutes and GBs of disk.
+
+  - Apply DB schema (be careful — modifies DB):
+    ```powershell
+    $script = Resolve-Path -Path './scripts/docker_manager.ps1'
+    & $script -Action apply_schema -ComposeFilePath 'lifebuddy-app.yml' -SchemaFilePath 'postgres/03_db_schema.sql'
+    ```
+    - What it does: pipes the SQL file into `psql` inside the `lifebuddy-db` container as the `admin` user. Use only when you intend to migrate or initialize the DB.
+
+  Safety notes & tips
+  - The `remove_all` and `remove_project` actions will delete containers, volumes, and images — review them carefully before use.
+  - When pulling models, ensure you have adequate disk space and bandwidth.
+  - Prefer `rebuild_app_engine` during iterative development to avoid unnecessary rebuilds of unrelated services.
+  - If a command will be executed by an AI assistant or CI job, require an explicit confirmation: e.g., `Proceed with rebuild_app_engine? (yes/no)`.
+
 - What to edit when changing code:
   1. Code changes → update related doc(s): API changes → `documentation/06 ui technical specifications.md`; schema → `documentation/03 db_schema.sql`; synthesis logic → `documentation/07 engine logic specifications.md`.
   2. Update summaries in `summaries/` (IMPLEMENTATION_READY.md, README_DOCUMENTATION.md).

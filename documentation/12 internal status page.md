@@ -6,6 +6,23 @@ Purpose
 Location
 - Engine endpoint: `GET /internal/status` (accessible from localhost only)
 
+- App endpoint: `GET /internal/status` on the App service provides a lighter-weight, App-focused health page (checks Engine reachability, templates/static presence, and shows the same traffic-light colors). This page is intended for UI/service owners and does not run the App source scan.
+
+App Internal Status (App-facing)
+- Location: `GET /internal/status` on the App service (App port 8000).
+- Purpose: a lightweight, UI-focused traffic-light view for application owners. It verifies that the App can reach the Engine, that local template and static assets are present, and surface the same Green/Amber/Red guidance used by the Engine page.
+
+Meaning of lights (App page)
+- Green: App can successfully reach the Engine (`/internal/status` returned HTTP 200), templates and static directories are present, and measured latencies are under the Green threshold (default 200 ms).
+- Amber: The App can reach the Engine but one or more latencies are between 200 ms and 1500 ms, or there are benign warnings (e.g., slow filesystem reads). No immediate incident required but review performance and logs.
+- Red: The App cannot reach the Engine (timeout / non-200 response) or required local assets (templates/static) are missing. Treat as an incident for the App owner and remediate (check container logs, restart, or restore missing assets).
+
+Operator guidance (App page)
+- Use the App Internal Status for quick verification before escalating an Engine or infra incident; it helps determine whether failures are in the UI layer (missing templates/static) or in Engine reachability.
+- If the App reports Red because it cannot reach the Engine, follow the Engine troubleshooting steps in this document (DB/Redis/Ollama checks) — the App page will show Engine status code and latency.
+
+Note: The App internal status intentionally does not run the App source scan for DB/LLM imports. The Engine page remains the authoritative check for policy violations (App importing DB/LLM clients).
+
 What it checks
 - Postgres connectivity (socket check to `POSTGRES_HOST:POSTGRES_PORT`).
 - Redis / message-broker connectivity (socket check to `MESSAGE_BROKER_HOST:6379`).
@@ -32,6 +49,56 @@ Latency thresholds and guidance
 Notes on thresholds
 - These thresholds are conservative guidelines for the dev environment. Production SLAs may be stricter — tune thresholds per environment and metric baseline.
 - The `internal/status` page uses simple socket and HTTP checks; for deeper diagnostics integrate with APM traces or synthetic transaction monitoring.
+
+Engine Internal Status (Engine-facing)
+- Location: `GET /internal/status` on the Engine service (Engine port 8001). This endpoint is restricted to localhost / Docker-internal addresses.
+- Purpose: a comprehensive traffic-light view for operators and Engine owners. It verifies connectivity to core infrastructure (Postgres, Redis), the LLM service (Ollama), and performs a safety scan of the `app/` source for disallowed imports (e.g., `psycopg2`, `sqlalchemy`, `ollama`, `openai`).
+
+What it checks (Engine)
+- Postgres connectivity: socket check to `POSTGRES_HOST:POSTGRES_PORT` and a lightweight `SELECT 1` database probe.
+- Redis / message-broker connectivity: socket check to `REDIS_HOST:REDIS_PORT`.
+- Ollama LLM availability: HTTP GET to `OLLAMA_BASE_URL/api/health` (interprets non-200 as unhealthy).
+- App source scan: searches the `app/` folder for direct DB or LLM client imports which would violate the service separation policy.
+
+Traffic-light definitions (Engine)
+- Green: All core services reachable, measured latencies under the Green threshold (default 200 ms), and the App source scan found no disallowed imports. No action required beyond normal monitoring.
+- Amber: All core services reachable but one or more latencies are between 200 ms and 1500 ms, or benign warnings were detected (e.g., third-party dev-only code patterns). Review logs and performance; no immediate incident needed unless sustained.
+- Red: Any critical service unreachable, latency consistently >1500 ms, or the App source scan found disallowed imports (policy violation). Treat as an incident.
+
+Operator guidance (Engine)
+- When the Engine page reports Amber:
+  - Check the last 10 logs for the failing service and review resource metrics (CPU, memory, disk I/O).
+  - If the issue is latency-only, monitor for 5–10 minutes for stabilization before escalating.
+- When the Engine page reports Red:
+  - If a core service is unreachable, follow incident triage: examine container logs, restart the affected service if needed, and check resource exhaustion and network connectivity.
+  - If the App source scan reports direct DB/LLM imports, treat as a compliance incident: immediately remove the offending imports or revert the change, and re-run the scan. The App must never access DB or LLM clients directly — the Engine is the only permitted actor.
+
+Remediation tips
+- Ollama 404 / unhealthy: verify the Ollama container is running (`docker ps`), and pull/start the required model if missing (example: `docker exec -it ollama ollama pull mistral`). After model pull, re-check `/internal/status`.
+- Postgres/Redis socket failures: verify container is running, check `docker logs <container>`, and ensure `POSTGRES_HOST`/`REDIS_HOST` env vars point to the correct service name.
+
+Notes
+- These Engine checks are intentionally stricter than the App's lightweight page — the Engine page includes the App source scan and is the authoritative policy enforcer for service separation.
+- If you change thresholds or add new checks, update this document and `README_DOCUMENTATION.md` to preserve operator knowledge.
+
+Monitoring & Metrics
+- The Engine exposes a Prometheus-compatible metrics endpoint at `GET /metrics` which includes key Ollama health metrics:
+  - `ollama_up`: 1 when Ollama returned HTTP 200, 0 otherwise.
+  - `ollama_status_code`: last HTTP status code observed from the Ollama health probe.
+  - `ollama_response_time_ms`: recent health probe response time in milliseconds.
+
+- Recommended setup:
+  1. Configure Prometheus to scrape `http://<engine-host>:8001/metrics`.
+  2. Create alerts: `ollama_up == 0` (fire immediately), `ollama_response_time_ms > 1500` (warn/alert), `ollama_status_code >= 500` (server error).
+  3. (Optional) Deploy a small Ollama exporter sidecar that can run `ollama list` or call additional Ollama internal APIs to publish `ollama_model_count` and `ollama_loaded_models` metrics — this is useful because the Engine cannot reliably introspect the Ollama container's model directory.
+
+- Runbook snippets:
+  - Check container: `docker ps --filter name=ollama`
+  - Check logs: `docker logs --tail 200 ollama`
+  - Verify models (inside ollama): `docker exec ollama ollama list`
+  - Pull model (inside ollama): `docker exec -it ollama ollama pull mistral`
+
+Keep this section updated if you add exporter sidecars or change metric names.
 
 Policy notes
 - The App service must never connect directly to the DB or LLM. The Engine is the only service allowed to access the DB and run LLM calls.

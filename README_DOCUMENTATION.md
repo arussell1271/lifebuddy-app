@@ -64,8 +64,13 @@
 **Engine API Reference**
 - ðŸ“¡ [10 engine api reference.md`10 engine api reference.md) - Complete API endpoint documentation (30+ endpoints), landing page HTML template, security notice, endpoint summary table
 
+**App Internal Status**
+- The App exposes a lightweight internal status page at `GET /internal/status` (see documentation/12 internal status page.md) — this page helps UI owners quickly verify Engine reachability and local app assets. Documented on 2026-01-02.
+
 **Internal Status Page**
 - ðŸ“¡ [12 internal status page.md`12 internal status page.md) - Local-only Engine status page (traffic-light) showing DB/Redis/LLM connectivity and app code integrity checks
+
+- **Monitoring & Metrics**: The Engine exposes a Prometheus-compatible metrics endpoint at `GET /metrics` which includes Ollama health metrics (`ollama_up`, `ollama_status_code`, `ollama_response_time_ms`). Consider adding an Ollama exporter sidecar to expose model-level metrics.
 
 ---
 

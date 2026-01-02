@@ -1,14 +1,17 @@
-# --- Engine Service (The Brain) Requirements ---
+﻿# Engine Service (The Brain) Requirements
 # Focused on LLM, database, and background job processing.
-# MUST include database and AI heavy dependencies.
-fastapi
-uvicorn[standard]
-pydantic
-psycopg2-binary # Postgres adapter (required for RLS/PoLP)
-pgvector # Required for vector similarity search
-langchain # Common LLM orchestration library
-ollama # Client for the local LLM service
-rq # Redis Queue or similar message queue worker library
+# Keep this list minimal for image build stability; add heavy deps in CI if needed.
+fastapi==0.95.2
+httpx==0.24.1
+psycopg2-binary==2.9.9
+python-jose==3.3.0
+prometheus_client>=0.15.0
+uvicorn[standard]==0.22.0
+pydantic==1.10.12
+# pin pgvector to a compatible, available release used during builds
+pgvector==0.4.2
+langchain
+rq
 gunicorn
 python-jose[cryptography]
 python-multipart
