@@ -27,9 +27,12 @@ def _load_shared_renderer():
     spec = importlib.util.spec_from_file_location("shared.render_status", str(renderer_file))
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return module.render_status
+    return module
 
-render_status = _load_shared_renderer()
+_renderer_module = _load_shared_renderer()
+render_status = _renderer_module.render_status
+# optional landing renderer (may not exist in older shared modules)
+render_landing = getattr(_renderer_module, "render_landing", None)
 
 app = FastAPI(title="LifeBuddy Engine")
 
@@ -265,8 +268,43 @@ async def internal_status(request: Request):
             {"color": "#ef4444", "label": "Red", "text": f"Critical — latency > {int(AMBER_THRESHOLD*1000)} ms or unreachable"},
         ]
         footer = "This page is internal to the Engine. The Engine has exclusive access to DB and LLM resources on the secure network."
-        html = render_status(title=title, subtitle=subtitle, services=services, thresholds=thresholds, footer=footer)
+        html = render_status(title=title, subtitle=subtitle, services=services, thresholds=thresholds, footer=footer, home_url="http://localhost:8001/")
         return HTMLResponse(content=html)
+
+
+@app.get("/", response_class=HTMLResponse)
+async def root_landing():
+    """Engine landing page: link to internal status and list App routes."""
+    title = "Life Buddy Cognitive Engine"
+    subtitle = "Internal service — Database and LLM access only"
+    status_url = "/internal/status"
+    # App routes to show (hosted on App service)
+    app_api_calls = [
+        {"path": "/", "url": "http://localhost:8000/", "desc": "App landing"},
+        {"path": "/login", "url": "http://localhost:8000/login", "desc": "Login page"},
+        {"path": "/register", "url": "http://localhost:8000/register", "desc": "Register page"},
+        {"path": "/dashboard", "url": "http://localhost:8000/dashboard", "desc": "User dashboard"},
+        {"path": "/health", "url": "http://localhost:8000/health", "desc": "App health check"},
+        {"path": "/internal/status", "url": "http://localhost:8000/internal/status", "desc": "App internal status page"},
+    ]
+    # Extract OpenAPI paths and convert to a simple endpoint list
+    try:
+        spec = app.openapi()
+        paths = spec.get("paths", {}) if isinstance(spec, dict) else {}
+        endpoints = []
+        for path, methods in sorted(paths.items()):
+            for m, info in methods.items():
+                endpoints.append({
+                    "path": path,
+                    "method": m.upper(),
+                    "summary": info.get("summary") if isinstance(info, dict) else None,
+                    "description": info.get("description") if isinstance(info, dict) else None,
+                })
+    except Exception:
+        endpoints = []
+
+    html = render_landing(title=title, subtitle=subtitle, status_url=status_url, app_api_calls=app_api_calls, endpoints=endpoints)
+    return HTMLResponse(content=html)
 
 
 @app.get("/metrics")

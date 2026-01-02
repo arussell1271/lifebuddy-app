@@ -165,12 +165,26 @@
         .hidden {
             display: none
         }
+
+        .home-link {
+            margin-top: 8px;
+            margin-bottom: 8px;
+        }
+
+        .home-link a {
+            color: #0066cc;
+            text-decoration: none;
+            font-size: 13px;
+        }
     </style>
 </head>
 
 <body>
     <div class="container">
         <h1>{{ title }}</h1>
+        {% if home_url %}
+        <div class="home-link"><a href="{{ home_url }}">← Back to main page</a></div>
+        {% endif %}
         <div class="subtitle">{{ subtitle }}</div>
 
         <h2 class="section-title">Service Checks</h2>
@@ -199,7 +213,8 @@
                                     <li class="sub-item"><span class="sub-badge-wrapper"><span
                                                 class="badge {{ c.status_class }}">{{ c.status_label }}</span></span>
                                         <strong>{{
-                                            c.name }}</strong> — <span class="detail">{{ c.detail }}</span></li>
+                                            c.name }}</strong> — <span class="detail">{{ c.detail }}</span>
+                                    </li>
                                     {%- endfor %}
                                 </ul>
                             </div>

@@ -18,9 +18,10 @@ def _load_shared_renderer():
     spec = importlib.util.spec_from_file_location("shared.render_status", str(renderer_file))
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return module.render_status
+    return module
 
-render_status = _load_shared_renderer()
+_renderer_module = _load_shared_renderer()
+render_status = _renderer_module.render_status
 import httpx  # type: ignore
 import os
 import time
@@ -183,6 +184,54 @@ async def internal_status_app(request: Request):
             "detail": "present" if exists else "missing",
         })
 
+        # Scan app source for prohibited DB/LLM imports or direct service references
+        import re
+        from pathlib import Path
+        # import shared patterns (moved out of app source to avoid self-matches)
+        try:
+            from shared.safety_patterns import IMPORT_PATTERNS, HOST_PATTERNS
+        except Exception:
+            IMPORT_PATTERNS = []
+            HOST_PATTERNS = []
+
+        repo_base = Path(__file__).resolve().parents[1]
+        app_src = repo_base / "app"
+        code_hits = []
+        try:
+            for p in app_src.rglob("*.py"):
+                try:
+                    rel = str(p.relative_to(repo_base))
+                    # Skip scanning this startup/status checker file to avoid self-matches
+                    if rel == "app/main.py":
+                        continue
+                except Exception:
+                    pass
+                try:
+                    text = p.read_text(encoding="utf-8")
+                except Exception:
+                    continue
+                # check import statements (multiline-aware)
+                for pat in IMPORT_PATTERNS:
+                    if re.search(pat, text, flags=re.MULTILINE):
+                        code_hits.append((str(p.relative_to(repo_base)), pat))
+                # check host/endpoint occurrences
+                for pat in HOST_PATTERNS:
+                    if re.search(pat, text):
+                        code_hits.append((str(p.relative_to(repo_base)), pat))
+        except Exception:
+            code_hits = [("scan_error", "unable to scan source files")]
+
+    code_ok = len(code_hits) == 0
+    code_subs = []
+    if code_hits:
+        for f, pat in code_hits:
+            code_subs.append({
+                "status_class": "red",
+                "status_label": "FOUND",
+                "name": f,
+                "detail": f"pattern: {pat}",
+            })
+
     services = [
         {
             "status_class": engine_level,
@@ -207,6 +256,14 @@ async def internal_status_app(request: Request):
             "description": "Static assets (CSS, JS, images) served at `/static` used for frontend styling and client-side scripts.",
             "subcomponents": static_subs if static_ok else [],
         },
+        {
+            "status_class": "green" if code_ok else "red",
+            "status_label": "OK" if code_ok else "ISSUES",
+            "component": "Code Safety",
+            "detail": "No prohibited DB/LLM imports or direct service references found." if code_ok else "Prohibited patterns found in source files.",
+            "description": "Scans `app/` Python source for direct DB or LLM usage (psycopg2, sqlalchemy, ollama, lifebuddy-db, etc.). The App must call the Engine API instead.",
+            "subcomponents": code_subs if not code_ok else [],
+        },
     ]
 
     thresholds = [
@@ -216,7 +273,7 @@ async def internal_status_app(request: Request):
     ]
 
     footer = "This page is for local diagnostics only. The App does not access the database or LLM directly; it communicates with the Engine on the secure network."
-    html = render_status(title=title, subtitle=subtitle, services=services, thresholds=thresholds, footer=footer)
+    html = render_status(title=title, subtitle=subtitle, services=services, thresholds=thresholds, footer=footer, home_url="http://localhost:8000/")
     return HTMLResponse(content=html)
 
 
@@ -228,14 +285,28 @@ def _verify_app_code_safety():
 
     repo_base = Path(__file__).resolve().parents[1]
     app_dir = repo_base / "app"
-    patterns = [r"\bimport\s+psycopg2\b", r"\bfrom\s+psycopg2\b", r"\bimport\s+sqlalchemy\b", r"\bfrom\s+sqlalchemy\b", r"\bimport\s+pgvector\b", r"\bfrom\s+pgvector\b", r"\bollama\b", r"\bopenai\b"]
+    try:
+        from shared.safety_patterns import IMPORT_PATTERNS as STARTUP_IMPORT_PATTERNS, HOST_PATTERNS as STARTUP_HOST_PATTERNS
+    except Exception:
+        STARTUP_IMPORT_PATTERNS = []
+        STARTUP_HOST_PATTERNS = []
     hits = []
     for p in app_dir.rglob("*.py"):
+        # Skip scanning this startup checker file to avoid self-matches
+        try:
+            rel = str(p.relative_to(repo_base))
+            if rel == "app/main.py":
+                continue
+        except Exception:
+            pass
         try:
             text = p.read_text(encoding="utf-8")
         except Exception:
             continue
-        for pat in patterns:
+        for pat in STARTUP_IMPORT_PATTERNS:
+            if re.search(pat, text, flags=re.MULTILINE):
+                hits.append((str(p.relative_to(repo_base)), pat))
+        for pat in STARTUP_HOST_PATTERNS:
             if re.search(pat, text):
                 hits.append((str(p.relative_to(repo_base)), pat))
     if hits:

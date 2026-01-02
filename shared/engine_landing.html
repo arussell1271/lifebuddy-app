@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{{ title }}</title>
+    <style>
+        body {
+            font-family: Inter, system-ui, -apple-system, Arial, sans-serif;
+            background: #f6f8fa;
+            color: #111;
+            margin: 24px
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 22px;
+            border-radius: 10px;
+            box-shadow: 0 6px 24px rgba(12, 15, 20, 0.06)
+        }
+
+        h1 {
+            margin: 0 0 12px 0;
+            font-size: 20px
+        }
+
+        .subtitle {
+            color: #6b7280;
+            margin-bottom: 12px
+        }
+
+        .links {
+            margin-top: 12px
+        }
+
+        .links a {
+            color: #0066cc;
+            text-decoration: none
+        }
+
+        .api-list {
+            margin-top: 16px
+        }
+
+        .api-item {
+            margin-bottom: 8px
+        }
+
+        .note {
+            margin-top: 18px;
+            color: #6b7280;
+            font-size: 13px
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>{{ title }}</h1>
+        <div class="subtitle">{{ subtitle }}</div>
+
+        <div class="links">
+            <div><a href="{{ status_url }}">Open Internal Status</a></div>
+        </div>
+
+        <div class="api-list">
+            <h3>App Routes</h3>
+            <ul>
+                {%- for a in app_api_calls %}
+                <li class="api-item"><a href="{{ a.url }}">{{ a.path }}</a> — <small>{{ a.desc }}</small></li>
+                {%- endfor %}
+            </ul>
+        </div>
+
+        <div class="api-list">
+            <h3>Engine API Endpoints</h3>
+            <p>Automatically extracted from OpenAPI (`/openapi.json`).</p>
+            <ul>
+                {%- for e in endpoints %}
+                <li class="api-item"><strong>{{ e.method }}</strong> <code>{{ e.path }}</code>
+                    {%- if e.summary %} — <em>{{ e.summary }}</em>{% endif %}
+                    {%- if e.description %}
+                    <div class="endpoint-desc">{{ e.description }}</div>
+                    {%- endif %}
+                </li>
+                {%- endfor %}
+            </ul>
+        </div>
+
+        <div class="note">This page is internal to the Engine. For API client details, use the listed App routes.</div>
+    </div>
+</body>
+
+</html>
