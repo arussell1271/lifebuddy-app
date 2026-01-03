@@ -13,10 +13,15 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 def _load_shared_renderer():
     import importlib.util
     from pathlib import Path
+    from importlib.machinery import ModuleSpec
     base = Path(__file__).resolve().parents[1]
     renderer_file = base / "shared" / "render_status.py"
     spec = importlib.util.spec_from_file_location("shared.render_status", str(renderer_file))
+    if spec is None:
+        raise RuntimeError(f"Unable to load shared renderer from {renderer_file}")
     module = importlib.util.module_from_spec(spec)
+    if spec.loader is None:
+        raise RuntimeError("Loaded spec has no loader for shared renderer")
     spec.loader.exec_module(module)
     return module
 
@@ -83,10 +88,10 @@ def register_get(request: Request):
 
 
 @app.post("/register")
-async def register_post(request: Request, username: str = Form(...), password: str = Form(...)):
+async def register_post(request: Request, username: str = Form(...), email: str = Form(...), password: str = Form(...)):
     async with httpx.AsyncClient() as client:
         try:
-            resp = await client.post(f"{ENGINE_BASE}/api/v1/auth/register", data={"username": username, "password": password}, timeout=5.0)
+            resp = await client.post(f"{ENGINE_BASE}/api/v1/auth/register", data={"username": username, "email": email, "password": password}, timeout=5.0)
         except Exception:
             return templates.TemplateResponse("register.html", {"request": request, "error": "Engine unreachable"})
     if resp.status_code not in (200, 201):
@@ -114,6 +119,175 @@ async def dashboard(request: Request):
     user = me.json() if me.status_code == 200 else None
     db_status = db.json() if db.status_code == 200 else {"status": "error", "detail": db.text}
     return templates.TemplateResponse("dashboard.html", {"request": request, "user": user, "db_status": db_status})
+
+
+@app.get("/settings", response_class=HTMLResponse)
+async def settings_get(request: Request):
+    # Redirect to profile settings by default
+    return RedirectResponse(url="/settings/profile")
+
+
+@app.post("/settings")
+async def settings_post(request: Request, email: str = Form(...)):
+    token = request.cookies.get("access_token")
+    if not token:
+        return RedirectResponse(url="/login")
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    async with httpx.AsyncClient() as client:
+        try:
+            resp = await client.patch(f"{ENGINE_BASE}/api/v1/me", json={"email": email}, headers=headers, timeout=5.0)
+        except Exception:
+            return templates.TemplateResponse("settings.html", {"request": request, "user": None, "error": "Engine unreachable"})
+    if resp.status_code != 200:
+        # Re-fetch user for display
+        async with httpx.AsyncClient() as client:
+            try:
+                me = await client.get(f"{ENGINE_BASE}/api/v1/me", headers={"Authorization": f"Bearer {token}"}, timeout=5.0)
+                user = me.json() if me.status_code == 200 else None
+            except Exception:
+                user = None
+        return templates.TemplateResponse("settings.html", {"request": request, "user": user, "error": resp.text})
+    # success
+    async with httpx.AsyncClient() as client:
+        me = await client.get(f"{ENGINE_BASE}/api/v1/me", headers={"Authorization": f"Bearer {token}"}, timeout=5.0)
+    user = me.json() if me.status_code == 200 else None
+    return templates.TemplateResponse("settings.html", {"request": request, "user": user, "message": "Email updated."})
+
+
+@app.get("/settings/profile", response_class=HTMLResponse)
+async def settings_profile_get(request: Request):
+    token = request.cookies.get("access_token")
+    if not token:
+        return RedirectResponse(url="/login")
+    headers = {"Authorization": f"Bearer {token}"}
+    async with httpx.AsyncClient() as client:
+        try:
+            me = await client.get(f"{ENGINE_BASE}/api/v1/me", headers=headers, timeout=5.0)
+        except Exception:
+            return templates.TemplateResponse("settings/profile.html", {"request": request, "user": None, "error": "Engine unreachable"})
+    user = me.json() if me.status_code == 200 else None
+    return templates.TemplateResponse("settings/profile.html", {"request": request, "user": user, "message": None, "error": None})
+
+
+@app.post("/settings/profile")
+async def settings_profile_post(request: Request, email: str = Form(...)):
+    token = request.cookies.get("access_token")
+    if not token:
+        return RedirectResponse(url="/login")
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    async with httpx.AsyncClient() as client:
+        try:
+            resp = await client.patch(f"{ENGINE_BASE}/api/v1/me", json={"email": email}, headers=headers, timeout=5.0)
+        except Exception:
+            return templates.TemplateResponse("settings/profile.html", {"request": request, "user": None, "error": "Engine unreachable"})
+    if resp.status_code != 200:
+        async with httpx.AsyncClient() as client:
+            try:
+                me = await client.get(f"{ENGINE_BASE}/api/v1/me", headers={"Authorization": f"Bearer {token}"}, timeout=5.0)
+                user = me.json() if me.status_code == 200 else None
+            except Exception:
+                user = None
+        return templates.TemplateResponse("settings/profile.html", {"request": request, "user": user, "error": resp.text})
+    async with httpx.AsyncClient() as client:
+        me = await client.get(f"{ENGINE_BASE}/api/v1/me", headers={"Authorization": f"Bearer {token}"}, timeout=5.0)
+    user = me.json() if me.status_code == 200 else None
+    return templates.TemplateResponse("settings/profile.html", {"request": request, "user": user, "message": "Profile updated."})
+
+
+@app.get("/settings/security", response_class=HTMLResponse)
+async def settings_security_get(request: Request):
+    token = request.cookies.get("access_token")
+    if not token:
+        return RedirectResponse(url="/login")
+    headers = {"Authorization": f"Bearer {token}"}
+    async with httpx.AsyncClient() as client:
+        try:
+            me = await client.get(f"{ENGINE_BASE}/api/v1/me", headers=headers, timeout=5.0)
+        except Exception:
+            return templates.TemplateResponse("settings/security.html", {"request": request, "user": None, "error": "Engine unreachable"})
+    user = me.json() if me.status_code == 200 else None
+    return templates.TemplateResponse("settings/security.html", {"request": request, "user": user, "message": None, "error": None})
+
+
+@app.post("/settings/security")
+async def settings_security_post(request: Request, current_password: str = Form(...), new_password: str = Form(...)):
+    token = request.cookies.get("access_token")
+    if not token:
+        return RedirectResponse(url="/login")
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    payload = {"current_password": current_password, "new_password": new_password}
+    async with httpx.AsyncClient() as client:
+        try:
+            resp = await client.post(f"{ENGINE_BASE}/api/v1/me/password", json=payload, headers=headers, timeout=5.0)
+        except Exception:
+            return templates.TemplateResponse("settings/security.html", {"request": request, "user": None, "error": "Engine unreachable"})
+    if resp.status_code != 200:
+        async with httpx.AsyncClient() as client:
+            try:
+                me = await client.get(f"{ENGINE_BASE}/api/v1/me", headers={"Authorization": f"Bearer {token}"}, timeout=5.0)
+                user = me.json() if me.status_code == 200 else None
+            except Exception:
+                user = None
+        return templates.TemplateResponse("settings/security.html", {"request": request, "user": user, "error": resp.text})
+    async with httpx.AsyncClient() as client:
+        me = await client.get(f"{ENGINE_BASE}/api/v1/me", headers={"Authorization": f"Bearer {token}"}, timeout=5.0)
+    user = me.json() if me.status_code == 200 else None
+    return templates.TemplateResponse("settings/security.html", {"request": request, "user": user, "message": "Password changed."})
+
+
+@app.get("/settings/preferences", response_class=HTMLResponse)
+async def settings_preferences_get(request: Request):
+    token = request.cookies.get("access_token")
+    if not token:
+        return RedirectResponse(url="/login")
+    headers = {"Authorization": f"Bearer {token}"}
+    async with httpx.AsyncClient() as client:
+        try:
+            me = await client.get(f"{ENGINE_BASE}/api/v1/me", headers=headers, timeout=5.0)
+            prefs = await client.get(f"{ENGINE_BASE}/api/v1/user-preferences", headers=headers, timeout=5.0)
+        except Exception:
+            return templates.TemplateResponse("settings/preferences.html", {"request": request, "user": None, "prefs": None, "error": "Engine unreachable"})
+    user = me.json() if me.status_code == 200 else None
+    prefs_json = prefs.json() if prefs.status_code == 200 else None
+    return templates.TemplateResponse("settings/preferences.html", {"request": request, "user": user, "prefs": prefs_json, "message": None, "error": None})
+
+
+@app.post("/settings/preferences")
+async def settings_preferences_post(request: Request, theme: str = Form(...), notifications: str = Form(...)):
+    token = request.cookies.get("access_token")
+    if not token:
+        return RedirectResponse(url="/login")
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    payload = {"theme": theme, "notifications": notifications}
+    async with httpx.AsyncClient() as client:
+        try:
+            # Forward to Engine's preferences PATCH endpoint
+            resp = await client.patch(f"{ENGINE_BASE}/api/v1/user-preferences", json=payload, headers=headers, timeout=5.0)
+        except Exception:
+            return templates.TemplateResponse("settings/preferences.html", {"request": request, "user": None, "error": "Engine unreachable"})
+    if resp.status_code not in (200, 201):
+        # Re-fetch user for display
+        async with httpx.AsyncClient() as client:
+            try:
+                me = await client.get(f"{ENGINE_BASE}/api/v1/me", headers={"Authorization": f"Bearer {token}"}, timeout=5.0)
+                user = me.json() if me.status_code == 200 else None
+            except Exception:
+                user = None
+        return templates.TemplateResponse("settings/preferences.html", {"request": request, "user": user, "error": resp.text})
+    # success
+    async with httpx.AsyncClient() as client:
+        me = await client.get(f"{ENGINE_BASE}/api/v1/me", headers={"Authorization": f"Bearer {token}"}, timeout=5.0)
+    user = me.json() if me.status_code == 200 else None
+    return templates.TemplateResponse("settings/preferences.html", {"request": request, "user": user, "message": "Preferences saved."})
+
+
+
+@app.get("/logout")
+def logout(request: Request):
+    # Clear the auth cookie and redirect to landing
+    response = RedirectResponse(url="/", status_code=303)
+    response.delete_cookie("access_token")
+    return response
 
 
 @app.get("/health")
